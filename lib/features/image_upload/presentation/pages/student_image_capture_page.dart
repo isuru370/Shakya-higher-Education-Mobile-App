@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../../core/utils/image_picker_service.dart';
 import '../../../image_upload/data/models/image_upload/image_upload_request_model.dart';
 import '../../../image_upload/presentation/bloc/image_upload/image_upload_bloc.dart';
 import '../../../student_grade/presentation/bloc/student_grade/student_grade_bloc.dart';
@@ -22,7 +23,8 @@ class StudentImageCapturePage extends StatefulWidget {
 class _StudentImageCapturePageState extends State<StudentImageCapturePage> {
   File? _imageFile;
   int? _selectedGradeId;
-  final ImagePicker _picker = ImagePicker();
+
+  final ImagePickerService _imageService = ImagePickerService();
 
   late final StudentGradeBloc _studentGradeBloc;
   late final ImageUploadBloc _imageUploadBloc;
@@ -41,20 +43,20 @@ class _StudentImageCapturePageState extends State<StudentImageCapturePage> {
 
   Future<void> _pickImage(ImageSource source) async {
     try {
-      final pickedFile = await _picker.pickImage(
-        source: source,
-        maxWidth: 800,
-        maxHeight: 800,
-        imageQuality: 80,
-      );
+      final file = await _imageService.pickImage(source: source);
 
-      if (pickedFile != null) {
+      if (file != null) {
         setState(() {
-          _imageFile = File(pickedFile.path);
+          _imageFile = file;
         });
       }
     } catch (e) {
       debugPrint('Image picking error: $e');
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to pick image: $e')));
     }
   }
 
@@ -73,6 +75,58 @@ class _StudentImageCapturePageState extends State<StudentImageCapturePage> {
 
     _imageUploadBloc.add(
       CreateQuickPhotoEvent(request: request, gradeId: _selectedGradeId!),
+    );
+  }
+
+  Widget _buildImagePreview() {
+    if (_imageFile != null) {
+      return Column(
+        children: [
+          Container(
+            width: 150,
+            height: 185, // 18:22 ratio preview
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(12),
+              color: Colors.grey.shade100,
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.file(_imageFile!, fit: BoxFit.cover),
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextButton.icon(
+            onPressed: _isUploading
+                ? null
+                : () {
+                    setState(() {
+                      _imageFile = null;
+                    });
+                  },
+            icon: const Icon(Icons.delete_outline),
+            label: const Text('Remove Photo'),
+          ),
+        ],
+      );
+    }
+
+    return Container(
+      width: 150,
+      height: 185,
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.grey.shade100,
+      ),
+      child: const Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.person, size: 70, color: Colors.grey),
+          SizedBox(height: 8),
+          Text('No Photo Selected'),
+        ],
+      ),
     );
   }
 
@@ -108,12 +162,12 @@ class _StudentImageCapturePageState extends State<StudentImageCapturePage> {
                     actions: [
                       TextButton(
                         onPressed: () {
-                          Navigator.of(context).pop(); // close dialog
+                          Navigator.of(context).pop();
 
                           setState(() {
                             _isUploading = false;
                             _imageFile = null;
-                            _selectedGradeId = null; // reset grade also
+                            _selectedGradeId = null;
                           });
                         },
                         child: const Text('Close'),
@@ -138,20 +192,10 @@ class _StudentImageCapturePageState extends State<StudentImageCapturePage> {
                   child: SingleChildScrollView(
                     child: Column(
                       children: [
-                        /// Profile Image
-                        _imageFile != null
-                            ? CircleAvatar(
-                                radius: 70,
-                                backgroundImage: FileImage(_imageFile!),
-                              )
-                            : const CircleAvatar(
-                                radius: 70,
-                                child: Icon(Icons.person, size: 70),
-                              ),
+                        _buildImagePreview(),
 
                         const SizedBox(height: 20),
 
-                        /// Camera & Gallery
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -175,7 +219,6 @@ class _StudentImageCapturePageState extends State<StudentImageCapturePage> {
 
                         const SizedBox(height: 30),
 
-                        /// Grade Dropdown
                         BlocBuilder<StudentGradeBloc, StudentGradeState>(
                           builder: (context, state) {
                             if (state is StudentGradeLoading) {
@@ -220,7 +263,6 @@ class _StudentImageCapturePageState extends State<StudentImageCapturePage> {
 
                         const SizedBox(height: 30),
 
-                        /// Upload Button
                         SizedBox(
                           width: double.infinity,
                           height: 50,
@@ -240,7 +282,6 @@ class _StudentImageCapturePageState extends State<StudentImageCapturePage> {
 
                         const SizedBox(height: 30),
 
-                        /// Show Quick Image
                         if (uploadState is CreateQuickPhotoSuccess)
                           Column(
                             children: [
@@ -264,10 +305,9 @@ class _StudentImageCapturePageState extends State<StudentImageCapturePage> {
                   ),
                 ),
 
-                /// Loading Overlay
                 if (_isUploading)
                   Container(
-                    color: Colors.black.withValues(alpha: 0.4),
+                    color: Colors.black.withOpacity(0.4),
                     child: const Center(child: CircularProgressIndicator()),
                   ),
               ],
