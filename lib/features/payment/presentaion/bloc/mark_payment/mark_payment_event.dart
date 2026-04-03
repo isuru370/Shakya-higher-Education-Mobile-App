@@ -11,7 +11,23 @@ class MarkPaymentRequested extends MarkPaymentEvent {
   final String token;
   final MarkPaymentRequestModel requestModel;
 
-  const MarkPaymentRequested({required this.token, required this.requestModel});
+  const MarkPaymentRequested({
+    required this.token,
+    required this.requestModel,
+  });
+
+  @override
+  List<Object> get props => [token, requestModel];
+}
+
+class MarkBulkPaymentRequested extends MarkPaymentEvent {
+  final String token;
+  final BulkMarkPaymentRequestModel requestModel;
+
+  const MarkBulkPaymentRequested({
+    required this.token,
+    required this.requestModel,
+  });
 
   @override
   List<Object> get props => [token, requestModel];

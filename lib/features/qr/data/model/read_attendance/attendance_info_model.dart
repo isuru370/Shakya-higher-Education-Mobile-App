@@ -11,9 +11,9 @@ class AttendanceInfoModel {
 
   factory AttendanceInfoModel.fromJson(Map<String, dynamic> json) {
     return AttendanceInfoModel(
-      totalThisMonth: json['attendance_count_this_month_total'],
-      countForThisClass: json['attendance_count_for_this_class'],
-      currentMonth: json['current_month'],
+      totalThisMonth: json['attendance_count_this_month_total'] ?? 0,
+      countForThisClass: json['attendance_count_for_this_class'] ?? 0,
+      currentMonth: json['current_month']?.toString() ?? '',
     );
   }
 }

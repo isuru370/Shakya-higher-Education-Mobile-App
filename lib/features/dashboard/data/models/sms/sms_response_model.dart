@@ -18,7 +18,7 @@ class SmsResponseModel {
       success: json['success'] ?? false,
       httpStatus: json['http_status'] ?? 0,
       providerStatusCode: json['provider_status_code'] ?? 0,
-      data: SmsModel.fromJson(json['json'] ?? {}),
+      data: SmsModel.fromJson(json['data'] ?? {}),
     );
   }
 

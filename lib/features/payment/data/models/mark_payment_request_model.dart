@@ -5,7 +5,7 @@ class MarkPaymentRequestModel {
   final int studentId;
   final int studentStudentClassId;
   final String paymentFor;
-    final String guardianMobile;
+  final String guardianMobile;
 
   MarkPaymentRequestModel({
     required this.paymentDate,
@@ -20,12 +20,12 @@ class MarkPaymentRequestModel {
   Map<String, dynamic> toJson() {
     return {
       'payment_date': paymentDate,
-      'status': status,
+      'status': status ? 1 : 0,
       'amount': amount,
       'student_id': studentId,
       'student_student_student_classes_id': studentStudentClassId,
       'payment_for': paymentFor,
-      'guardian_mobile' : guardianMobile,
+      'guardian_mobile': guardianMobile,
     };
   }
 }

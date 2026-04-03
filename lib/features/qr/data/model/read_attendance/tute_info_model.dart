@@ -9,8 +9,8 @@ class TuteInfoModel {
 
   factory TuteInfoModel.fromJson(Map<String, dynamic> json) {
     return TuteInfoModel(
-      hasTuteForThisMonth: json['has_tute_for_this_month'],
-      currentMonth: json['current_month'],
+      hasTuteForThisMonth: json['has_tute_for_this_month'] ?? false,
+      currentMonth: json['current_month']?.toString() ?? '',
     );
   }
 }

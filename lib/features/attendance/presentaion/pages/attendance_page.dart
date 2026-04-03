@@ -179,9 +179,9 @@ class _AttendancePageState extends State<AttendancePage> {
                           const SizedBox(height: 12),
 
                           // ---------------- TUTE TOGGLE ----------------
-                          record.tuteInfo.hasTuteForThisMonth
+                          record.tuteInfo!.hasTuteForThisMonth
                               ? Text(
-                                  'Tute for ${record.tuteInfo.currentMonth} is available',
+                                  'Tute for ${record.tuteInfo!.currentMonth} is available',
                                   style: const TextStyle(
                                     color: Colors.blue,
                                     fontWeight: FontWeight.w600,

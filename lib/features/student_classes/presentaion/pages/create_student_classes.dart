@@ -34,6 +34,12 @@ class _CreateStudentClassesState extends State<CreateStudentClasses>
   int? _updatingClassId;
   bool _isStudentFreeCard = false;
 
+  double? _customFee;
+  double? _discountPercentage;
+  String? _discountType;
+
+  final TextEditingController _customFeeController = TextEditingController();
+
   List<ClassRoomItemModel> _availableClasses = [];
   List<ClassCategoryModel> _availableCategories = [];
 
@@ -50,6 +56,7 @@ class _CreateStudentClassesState extends State<CreateStudentClasses>
   @override
   void dispose() {
     _tabController.dispose();
+    _customFeeController.dispose();
     super.dispose();
   }
 
@@ -63,6 +70,13 @@ class _CreateStudentClassesState extends State<CreateStudentClasses>
     });
   }
 
+  void _resetFeeInputs() {
+    _customFee = null;
+    _discountPercentage = null;
+    _discountType = null;
+    _customFeeController.clear();
+  }
+
   void _resetFormAfterSuccess() {
     setState(() {
       _selectedGradeId = null;
@@ -71,6 +85,7 @@ class _CreateStudentClassesState extends State<CreateStudentClasses>
       _availableClasses = [];
       _availableCategories = [];
       _isStudentFreeCard = false;
+      _resetFeeInputs();
     });
   }
 
@@ -91,6 +106,39 @@ class _CreateStudentClassesState extends State<CreateStudentClasses>
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
       ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  String _formatMoney(dynamic value) {
+    if (value == null) return '-';
+    return value.toString();
+  }
+
+  dynamic _tryGet(dynamic object, String key) {
+    try {
+      final dynamic value = (object as dynamic);
+      switch (key) {
+        case 'defaultFee':
+          return value.defaultFee;
+        case 'finalFee':
+          return value.finalFee;
+        case 'feeType':
+          return value.feeType;
+        case 'discountPercentage':
+          return value.discountPercentage;
+        case 'discountType':
+          return value.discountType;
+        case 'customFee':
+          return value.customFee;
+        case 'inactiveText':
+          return value.inactiveText;
+        case 'isFreeCard':
+          return value.isFreeCard;
+        default:
+          return null;
+      }
+    } catch (_) {
+      return null;
+    }
   }
 
   @override
@@ -171,7 +219,10 @@ class _CreateStudentClassesState extends State<CreateStudentClasses>
             Expanded(
               child: TabBarView(
                 controller: _tabController,
-                children: [_buildAddClassSection(), _buildViewClassesSection()],
+                children: [
+                  _buildAddClassSection(),
+                  _buildViewClassesSection(),
+                ],
               ),
             ),
           ],
@@ -526,12 +577,97 @@ class _CreateStudentClassesState extends State<CreateStudentClasses>
                         onChanged: (value) {
                           setState(() {
                             _isStudentFreeCard = value;
+                            if (_isStudentFreeCard) {
+                              _resetFeeInputs();
+                            }
                           });
                         },
                       ),
                     ],
                   ),
                 ),
+
+                if (!_isStudentFreeCard) ...[
+                  const SizedBox(height: 16),
+
+                  const Text(
+                    'Custom Fee (Optional)',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+
+                  TextFormField(
+                    controller: _customFeeController,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: 'Enter custom fee',
+                      filled: true,
+                      fillColor: const Color(0xfff8fafc),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    onChanged: (value) {
+                      setState(() {
+                        _customFee = value.trim().isEmpty
+                            ? null
+                            : double.tryParse(value.trim());
+
+                        if (_customFee != null) {
+                          _discountPercentage = null;
+                          _discountType = null;
+                        }
+                      });
+                    },
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  const Text(
+                    'Discount % (Optional)',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+
+                  DropdownButtonFormField<double>(
+                    value: _discountPercentage,
+                    decoration: InputDecoration(
+                      hintText: _customFee != null
+                          ? 'Custom fee selected'
+                          : 'Select discount',
+                      filled: true,
+                      fillColor: const Color(0xfff8fafc),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    items: const [10, 25, 50, 75, 100].map((e) {
+                      return DropdownMenuItem<double>(
+                        value: e.toDouble(),
+                        child: Text('$e %'),
+                      );
+                    }).toList(),
+                    onChanged: _customFee != null
+                        ? null
+                        : (value) {
+                            setState(() {
+                              _discountPercentage = value;
+
+                              if (value == 50) {
+                                _discountType = 'half_card';
+                              } else if (value == 100) {
+                                _discountType = 'free_card';
+                              } else {
+                                _discountType = null;
+                              }
+                            });
+                          },
+                  ),
+                ],
 
                 const SizedBox(height: 20),
 
@@ -562,6 +698,15 @@ class _CreateStudentClassesState extends State<CreateStudentClasses>
                                   return;
                                 }
 
+                                if (!_isStudentFreeCard &&
+                                    _customFee != null &&
+                                    _discountPercentage != null) {
+                                  _showSnack(
+                                    'Cannot use custom fee and discount together',
+                                  );
+                                  return;
+                                }
+
                                 context.read<StudentClassesBloc>().add(
                                   SubmitCreateStudentClass(
                                     request: CreateStudentClassRequestModel(
@@ -574,8 +719,16 @@ class _CreateStudentClassesState extends State<CreateStudentClasses>
                                       studentClassesId: _selectedClassId!,
                                       classCategoryHasStudentClassId:
                                           _selectedCategoryHasStudentClassId!,
-                                      status: 1,
+                                      status: true,
                                       isFreeCard: _isStudentFreeCard,
+                                      customFee:
+                                          _isStudentFreeCard ? null : _customFee,
+                                      discountPercentage: _isStudentFreeCard
+                                          ? null
+                                          : _discountPercentage,
+                                      discountType: _isStudentFreeCard
+                                          ? 'free_card'
+                                          : _discountType,
                                     ),
                                   ),
                                 );
@@ -685,6 +838,14 @@ class _CreateStudentClassesState extends State<CreateStudentClasses>
     final isUpdatingThisCard =
         _updatingClassId == item.studentStudentStudentClassesId;
 
+    final dynamic defaultFee = _tryGet(item, 'defaultFee') ?? category.fees;
+    final dynamic finalFee = _tryGet(item, 'finalFee') ?? category.fees;
+    final String feeType = _tryGet(item, 'feeType')?.toString() ?? 'Standard';
+    final dynamic discountPercentage = _tryGet(item, 'discountPercentage');
+    final dynamic discountType = _tryGet(item, 'discountType');
+    final dynamic customFee = _tryGet(item, 'customFee');
+    final bool isFreeCard = (_tryGet(item, 'isFreeCard') ?? false) == true;
+
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 12),
@@ -758,7 +919,36 @@ class _CreateStudentClassesState extends State<CreateStudentClasses>
           const SizedBox(height: 12),
           _infoRow(Icons.category_outlined, 'Category', category.categoryName),
           _infoRow(Icons.language, 'Medium', studentClass.medium),
-          _infoRow(Icons.payments_outlined, 'Fees', 'LKR ${category.fees}'),
+          _infoRow(
+            Icons.payments_outlined,
+            'Default Fee',
+            'LKR ${_formatMoney(defaultFee)}',
+          ),
+          _infoRow(
+            Icons.price_check_outlined,
+            'Final Fee',
+            'LKR ${_formatMoney(finalFee)}',
+          ),
+          _infoRow(Icons.local_offer_outlined, 'Fee Type', feeType),
+          _infoRow(
+            Icons.card_membership_outlined,
+            'Free Card',
+            isFreeCard ? 'Yes' : 'No',
+          ),
+          if (discountPercentage != null)
+            _infoRow(Icons.percent, 'Discount', '${discountPercentage}%'),
+          if (discountType != null)
+            _infoRow(
+              Icons.sell_outlined,
+              'Discount Type',
+              discountType.toString(),
+            ),
+          if (customFee != null)
+            _infoRow(
+              Icons.edit_note_outlined,
+              'Custom Fee',
+              'LKR ${_formatMoney(customFee)}',
+            ),
           const SizedBox(height: 10),
           Row(
             children: [

@@ -90,7 +90,7 @@ class StudentClassesRemoteDataSource {
 
       final decoded = jsonDecode(response.body);
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 201) {
         return CreateStudentClassResponseModel.fromJson(decoded);
       } else if (response.statusCode == 409) {
         return CreateStudentClassResponseModel.fromJson(decoded);

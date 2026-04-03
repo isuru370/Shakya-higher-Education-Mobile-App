@@ -5,9 +5,18 @@ class CreateStudentClassModel {
   final int classCategoryHasStudentClassId;
   final bool status;
   final bool isFreeCard;
+
   final String? inactiveText;
   final String? createdAt;
   final String? updatedAt;
+
+  // 🔥 NEW FIELDS
+  final double? customFee;
+  final double? discountPercentage;
+  final String? discountType;
+  final double? defaultFee;
+  final double? finalFee;
+  final String? feeType;
 
   CreateStudentClassModel({
     required this.id,
@@ -19,6 +28,13 @@ class CreateStudentClassModel {
     this.inactiveText,
     this.createdAt,
     this.updatedAt,
+
+    this.customFee,
+    this.discountPercentage,
+    this.discountType,
+    this.defaultFee,
+    this.finalFee,
+    this.feeType,
   });
 
   factory CreateStudentClassModel.fromJson(Map<String, dynamic> json) {
@@ -33,6 +49,14 @@ class CreateStudentClassModel {
       inactiveText: json['inactive_text']?.toString(),
       createdAt: json['created_at']?.toString(),
       updatedAt: json['updated_at']?.toString(),
+
+      // 🔥 NEW PARSING
+      customFee: _parseDouble(json['custom_fee']),
+      discountPercentage: _parseDouble(json['discount_percentage']),
+      discountType: json['discount_type']?.toString(),
+      defaultFee: _parseDouble(json['default_fee']),
+      finalFee: _parseDouble(json['final_fee']),
+      feeType: json['fee_type']?.toString(),
     );
   }
 
@@ -48,6 +72,14 @@ class CreateStudentClassModel {
       'inactive_text': inactiveText,
       'created_at': createdAt,
       'updated_at': updatedAt,
+
+      // 🔥 NEW JSON
+      'custom_fee': customFee,
+      'discount_percentage': discountPercentage,
+      'discount_type': discountType,
+      'default_fee': defaultFee,
+      'final_fee': finalFee,
+      'fee_type': feeType,
     };
   }
 
@@ -56,6 +88,14 @@ class CreateStudentClassModel {
     if (value is String) return int.tryParse(value) ?? 0;
     if (value is double) return value.toInt();
     return 0;
+  }
+
+  static double? _parseDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
   }
 
   static bool _parseBool(dynamic value) {

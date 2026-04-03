@@ -24,12 +24,13 @@ class StudentViewClasses extends StatelessWidget {
 
         if (state is StudentClassesLoaded ||
             state is StudentClassStatusChanged) {
-          final classes = (state is StudentClassesLoaded
+          final blocState = context.read<StudentClassesBloc>().state;
+
+          final classes = state is StudentClassesLoaded
               ? state.response.data
-              : (context.read<StudentClassesBloc>().state
-                        as StudentClassesLoaded)
-                    .response
-                    .data);
+              : blocState is StudentClassesLoaded
+              ? blocState.response.data
+              : <dynamic>[];
 
           return Scaffold(
             appBar: AppBar(
@@ -59,113 +60,231 @@ class StudentViewClasses extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Class title
                               Text(
-                                '${studentClass.className} • Grade ${studentClass.grade.gradeName}',
+                                '${studentClass.className} • ${studentClass.grade.gradeName}',
                                 style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                               const SizedBox(height: 8),
+
                               Text(
                                 'Teacher: ${studentClass.teacher.firstName} ${studentClass.teacher.lastName}',
                                 style: const TextStyle(color: Colors.grey),
                               ),
                               const SizedBox(height: 4),
+
                               Text(
                                 'Subject: ${studentClass.subject.subjectName}',
                                 style: const TextStyle(color: Colors.grey),
                               ),
                               const SizedBox(height: 4),
+
                               Text(
                                 'Category: ${item.classCategory.categoryName}',
                                 style: const TextStyle(color: Colors.grey),
                               ),
                               const SizedBox(height: 12),
 
-                              // Status badge
                               Container(
+                                width: double.infinity,
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 12,
-                                  vertical: 6,
+                                  vertical: 10,
                                 ),
                                 decoration: BoxDecoration(
                                   color: item.status
                                       ? AppTheme.primaryColor.withValues(
-                                          alpha: 0.1,
+                                          alpha: 0.08,
                                         )
-                                      : Colors.red.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(20),
+                                      : Colors.red.withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(14),
                                 ),
                                 child: Row(
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Text(
-                                      item.status ? "Active" : "Inactive",
-                                      style: TextStyle(
-                                        color: item.status
-                                            ? AppTheme.primaryColor
-                                            : Colors.red,
-                                        fontWeight: FontWeight.bold,
+                                    Expanded(
+                                      child: Text(
+                                        item.inactiveText.isNotEmpty
+                                            ? item.inactiveText.toUpperCase()
+                                            : (item.status
+                                                  ? 'ACTIVE'
+                                                  : 'INACTIVE'),
+                                        style: TextStyle(
+                                          color: item.status
+                                              ? AppTheme.primaryColor
+                                              : Colors.red,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ),
                                     Text(
                                       item.isFreeCard ? 'Free Card' : 'Paid',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ],
                                 ),
                               ),
                               const SizedBox(height: 12),
 
-                              // Student info
                               Row(
                                 children: [
                                   CircleAvatar(
                                     radius: 24,
-                                    backgroundImage: NetworkImage(
-                                      item.student.imgUrl,
-                                    ),
+                                    backgroundImage:
+                                        item.student.imgUrl.isNotEmpty
+                                        ? NetworkImage(item.student.imgUrl)
+                                        : null,
+                                    child: item.student.imgUrl.isEmpty
+                                        ? const Icon(Icons.person)
+                                        : null,
                                   ),
                                   const SizedBox(width: 12),
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        item.student.initialName,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          item.student.fullName,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                          ),
                                         ),
-                                      ),
-                                      Text(
-                                        'Status: ${item.student.studentStatus ? "Active" : "Inactive"}',
-                                        style: const TextStyle(
-                                          color: Colors.grey,
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          item.student.studentCustomId,
+                                          style: const TextStyle(
+                                            color: Colors.grey,
+                                          ),
                                         ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          'Student Status: ${item.student.studentStatus ? "Active" : "Inactive"}',
+                                          style: const TextStyle(
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 14),
+
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const Text(
+                                          'Joined Date',
+                                          style: TextStyle(color: Colors.grey),
+                                        ),
+                                        Text(
+                                          item.joinedDate,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const Text(
+                                          'Default Fee',
+                                          style: TextStyle(color: Colors.grey),
+                                        ),
+                                        Text(
+                                          'LKR ${item.defaultFee.toStringAsFixed(0)}',
+                                          style: const TextStyle(
+                                            decoration:
+                                                TextDecoration.lineThrough,
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const Text(
+                                          'Final Fee',
+                                          style: TextStyle(color: Colors.grey),
+                                        ),
+                                        Text(
+                                          'LKR ${item.finalFee.toStringAsFixed(0)}',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: item.isFreeCard
+                                                ? Colors.green
+                                                : AppTheme.primaryColor,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const Text(
+                                          'Fee Type',
+                                          style: TextStyle(color: Colors.grey),
+                                        ),
+                                        Text(
+                                          item.feeType,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    if (item.discountPercentage != null) ...[
+                                      const SizedBox(height: 8),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          const Text(
+                                            'Discount',
+                                            style: TextStyle(
+                                              color: Colors.grey,
+                                            ),
+                                          ),
+                                          Text(
+                                            '${item.discountPercentage!.toStringAsFixed(2)}%',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.green,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ],
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                              const SizedBox(height: 12),
+                              const SizedBox(height: 14),
 
-                              // Fee & Join info
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text('Joined: ${item.joinedDate}'),
-                                  Text(
-                                    'Fee: LKR ${item.classCategoryHasStudentClass.classFee}',
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-
-                              // 🔹 Modern Payment & Attendance Buttons
                               Row(
                                 children: [
                                   if (!item.isFreeCard)
@@ -244,7 +363,7 @@ class StudentViewClasses extends StatelessWidget {
                                           vertical: 12,
                                         ),
                                       ),
-                                      icon: const Icon(Icons.check_circle),
+                                      icon: const Icon(Icons.menu_book),
                                       label: const Text('Tute'),
                                       onPressed: () {
                                         Navigator.pushNamed(

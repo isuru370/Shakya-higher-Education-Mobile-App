@@ -14,27 +14,30 @@ class GetClassesByGradeResponseModel {
   factory GetClassesByGradeResponseModel.fromJson(Map<String, dynamic> json) {
     final Map<String, Map<String, List<ClassRoomItemModel>>> parsedData = {};
 
-    final rawData = json['data'] as Map<String, dynamic>? ?? {};
+    final dynamic rawDataDynamic = json['data'];
 
-    rawData.forEach((gradeKey, subjectMap) {
-      final Map<String, List<ClassRoomItemModel>> subjects = {};
+    if (rawDataDynamic is Map<String, dynamic>) {
+      rawDataDynamic.forEach((gradeKey, subjectMap) {
+        final Map<String, List<ClassRoomItemModel>> subjects = {};
 
-      if (subjectMap is Map<String, dynamic>) {
-        subjectMap.forEach((subjectKey, classList) {
-          if (classList is List) {
-            subjects[subjectKey] = classList
-                .map((e) => ClassRoomItemModel.fromJson(e))
-                .toList();
-          }
-        });
-      }
+        if (subjectMap is Map<String, dynamic>) {
+          subjectMap.forEach((subjectKey, classList) {
+            if (classList is List) {
+              subjects[subjectKey] = classList
+                  .whereType<Map<String, dynamic>>()
+                  .map((e) => ClassRoomItemModel.fromJson(e))
+                  .toList();
+            }
+          });
+        }
 
-      parsedData[gradeKey] = subjects;
-    });
+        parsedData[gradeKey] = subjects;
+      });
+    }
 
     return GetClassesByGradeResponseModel(
-      status: json['status'] ?? '',
-      gradeId: json['grade_id'].toString(),
+      status: json['status']?.toString() ?? '',
+      gradeId: json['grade_id']?.toString() ?? '',
       data: parsedData,
     );
   }

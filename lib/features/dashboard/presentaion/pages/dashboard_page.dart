@@ -6,6 +6,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../auth/data/models/user_model.dart';
 import '../../../auth/presentation/bloc/auth/auth_bloc.dart';
 import '../../data/models/student_mini_model.dart';
+import '../../data/models/today_class_model.dart';
 import '../bloc/mobile_dashboard/mobile_dashboard_bloc.dart';
 import '../bloc/sms/sms_bloc.dart';
 
@@ -273,11 +274,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
   // ---------------- CLASS CARD ----------------
 
-  Widget _buildClassCard(classItem) {
-    if (classItem.length == 0) {
-      return _buildEmptyBox("No Class Data");
-    }
-
+  Widget _buildClassCard(TodayClassModel classItem) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       height: 150,
@@ -312,7 +309,7 @@ class _DashboardPageState extends State<DashboardPage> {
                         Text("Hall: ${classItem.hallName ?? '-'}"),
                         const SizedBox(height: 6),
                         Text(
-                          "${classItem.startTime ?? '-'} - ${classItem.endTime ?? '-'}",
+                          "${classItem.startTime} - ${classItem.endTime}",
                           style: const TextStyle(color: Colors.grey),
                         ),
                       ],
@@ -358,7 +355,7 @@ class _DashboardPageState extends State<DashboardPage> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        if (classItem.isOngoing == true)
+                        if (classItem.isOngoing)
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 12,
@@ -574,14 +571,12 @@ class _DashboardPageState extends State<DashboardPage> {
                   onTap: () => _navigateToTempQrPage(context),
                 ),
 
-                if (widget.userModel.email == "admin@nexorait.lk") ...[
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.local_activity,
-                    title: 'Activated Qr',
-                    onTap: () => _navigateToActiveQrPage(context),
-                  ),
-                ],
+                _buildMenuItem(
+                  context,
+                  icon: Icons.local_activity,
+                  title: 'Activated Qr',
+                  onTap: () => _navigateToActiveQrPage(context),
+                ),
 
                 _buildMenuItem(
                   context,
@@ -641,7 +636,7 @@ class _DashboardPageState extends State<DashboardPage> {
             backgroundColor: Colors.white,
             child: Padding(
               padding: const EdgeInsets.all(8),
-              child: Image.asset('assets/logo/black_logo.png', height: 140),
+              child: Image.asset('assets/logo/logo.png', height: 250),
             ),
           ),
 
