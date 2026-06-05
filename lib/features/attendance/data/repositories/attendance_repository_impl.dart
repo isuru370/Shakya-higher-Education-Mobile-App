@@ -1,7 +1,9 @@
+import '../../domain/repositories/attendance_repository.dart';
 import '../datasources/attendance_remote_datasource.dart';
 import '../models/atendance_request_model.dart';
+import '../models/attendance_history/attendance_history_request_model.dart';
+import '../models/attendance_history/attendance_history_response_model.dart';
 import '../models/attendance_response_model.dart';
-import '../../domain/repositories/attendance_repository.dart';
 
 class AttendanceRepositoryImpl implements AttendanceRepository {
   final AttendanceRemoteDataSource remoteDataSource;
@@ -10,12 +12,15 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
 
   @override
   Future<AttendanceResponseModel> markAttendance({
-    required String token,
     required AttendanceRequestModel request,
   }) async {
-    return await remoteDataSource.markAttendance(
-      token: token,
-      request: request,
-    );
+    return remoteDataSource.markAttendance(request: request);
+  }
+
+  @override
+  Future<AttendanceHistoryResponseModel> getAttendanceHistory({
+    required AttendanceHistoryRequestModel request,
+  }) async {
+    return remoteDataSource.getAttendanceHistory(request: request);
   }
 }

@@ -1,21 +1,27 @@
 import '../students_model.dart';
 
 class ReadStudentResponseModel {
-  final String status;
-  final String? message;
-  final StudentModel? data;
+  final bool success;
+  final String message;
+  final StudentModel? student;
 
   ReadStudentResponseModel({
-    required this.status,
-    this.message,
-    required this.data,
+    required this.success,
+    required this.message,
+    this.student,
   });
 
-  factory ReadStudentResponseModel.fromJson(Map<String, dynamic> json) {
+  factory ReadStudentResponseModel.fromJson(
+    Map<String, dynamic> json,
+  ) {
     return ReadStudentResponseModel(
-      status: json['status'],
-      message: json['message'] ?? "Unkown",
-      data: json['data'] != null ? StudentModel.fromJson(json['data']) : null,
+      success: json['success'] ?? false,
+      message: json['message'] ?? 'Unknown',
+      student: json['student'] != null
+          ? StudentModel.fromJson(
+              json['student'] as Map<String, dynamic>,
+            )
+          : null,
     );
   }
 }

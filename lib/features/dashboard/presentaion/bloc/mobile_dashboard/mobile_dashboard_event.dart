@@ -7,11 +7,4 @@ sealed class MobileDashboardEvent extends Equatable {
   List<Object> get props => [];
 }
 
-class GetMobileDashboardEvent extends MobileDashboardEvent {
-  final String token;
-
-  const GetMobileDashboardEvent(this.token);
-
-  @override
-  List<Object> get props => [token];
-}
+class GetMobileDashboardEvent extends MobileDashboardEvent {}

@@ -1,28 +1,31 @@
 class AttendanceRequestModel {
   final int studentId;
-  final int studentStudentClassId;
-  final int attendanceId;
-  final bool tute;
-  final int? classCategoryHasStudentClassId;
-  final String guardianMobile;
+  final int classScheduleId;
+  final int studentClassId;
+  final int classCategoryFeeId;
+  final String markMethod;
+  final bool markTute;
+  final String? note;
 
   AttendanceRequestModel({
     required this.studentId,
-    required this.studentStudentClassId,
-    required this.attendanceId,
-    required this.tute,
-    this.classCategoryHasStudentClassId,
-    required this.guardianMobile,
+    required this.classScheduleId,
+    required this.studentClassId,
+    required this.classCategoryFeeId,
+    required this.markMethod,
+    this.markTute = false,
+    this.note,
   });
 
   Map<String, dynamic> toJson() {
     return {
       'student_id': studentId,
-      'student_student_student_classes_id': studentStudentClassId,
-      'attendance_id': attendanceId,
-      'tute': tute,
-      'class_category_has_student_class_id': classCategoryHasStudentClassId,
-      'guardian_mobile' : guardianMobile,
+      'class_schedule_id': classScheduleId,
+      'student_class_id': studentClassId,
+      'class_category_fee_id': classCategoryFeeId,
+      'mark_method': markMethod,
+      'mark_tute': markTute,
+      'note': note,
     };
   }
 }

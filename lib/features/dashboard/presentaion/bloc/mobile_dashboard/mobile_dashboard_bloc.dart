@@ -23,11 +23,11 @@ class MobileDashboardBloc
     emit(MobileDashboardLoading());
 
     try {
-      final result = await getMobileDashboardUseCase(event.token);
+      final result = await getMobileDashboardUseCase();
 
       emit(MobileDashboardLoaded(result));
     } catch (e) {
-      emit(MobileDashboardError(e.toString()));
+      emit(const MobileDashboardError('Failed to load dashboard data'));
     }
   }
 }

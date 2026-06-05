@@ -1,9 +1,13 @@
 class ReadTuteRequestModel {
-  final String customId;
+  final String qrCode;
 
-  ReadTuteRequestModel({required this.customId});
+  ReadTuteRequestModel({
+    required this.qrCode,
+  });
 
-  Map<String, dynamic> toQuery() {
-    return {'custom_id': customId};
+  Map<String, dynamic> toJson() {
+    return {
+      'qr_code': qrCode,
+    };
   }
 }

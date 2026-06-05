@@ -4,7 +4,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../data/model/read_payment/read_payments_response_model.dart';
 import '../../../domain/usecases/read_payment_usecase.dart';
 
-
 part 'read_payment_event.dart';
 part 'read_payment_state.dart';
 
@@ -13,7 +12,7 @@ class ReadPaymentBloc extends Bloc<ReadPaymentEvent, ReadPaymentState> {
 
   ReadPaymentBloc({
     required this.readPaymentUseCase,
-  }) : super(ReadPaymentInitial()) {
+  }) : super(const ReadPaymentInitial()) {
     on<ReadPaymentRequested>(_onReadPaymentRequested);
   }
 
@@ -21,17 +20,20 @@ class ReadPaymentBloc extends Bloc<ReadPaymentEvent, ReadPaymentState> {
     ReadPaymentRequested event,
     Emitter<ReadPaymentState> emit,
   ) async {
-    emit(ReadPaymentLoading());
+    final previousResponse = state is ReadPaymentLoaded
+        ? (state as ReadPaymentLoaded).response
+        : null;
+
+    emit(ReadPaymentLoading(previousResponse: previousResponse));
 
     try {
       final result = await readPaymentUseCase(
-        token: event.token,
-        customId: event.customId,
+        qrCode: event.qrCode,
       );
 
       emit(ReadPaymentLoaded(result));
     } catch (e) {
-      emit(ReadPaymentError(e.toString()));
+      emit(ReadPaymentError(message: e.toString()));
     }
   }
 }

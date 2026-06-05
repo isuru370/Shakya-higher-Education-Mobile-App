@@ -7,12 +7,8 @@ class ReadTuteUseCase {
   ReadTuteUseCase(this.repository);
 
   Future<ReadTuteResponseModel> call({
-    required String token,
-    required String customId,
+    required String qrCode,
   }) {
-    return repository.readTute(
-      token: token,
-      customId: customId,
-    );
+    return repository.readTute(qrCode: qrCode);
   }
 }

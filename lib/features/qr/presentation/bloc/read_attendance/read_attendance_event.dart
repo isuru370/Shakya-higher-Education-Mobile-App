@@ -7,16 +7,17 @@ sealed class ReadAttendanceEvent extends Equatable {
   List<Object?> get props => [];
 }
 
-// Event to trigger fetching attendance
 final class ReadAttendanceRequested extends ReadAttendanceEvent {
-  final String token;
-  final String customId;
+  final String qrCode;
+  final int studentClassId;
+  final int classCategoryFeeId;
 
   const ReadAttendanceRequested({
-    required this.token,
-    required this.customId,
+    required this.qrCode,
+    required this.studentClassId,
+    required this.classCategoryFeeId,
   });
 
   @override
-  List<Object?> get props => [token, customId];
+  List<Object?> get props => [qrCode, studentClassId, classCategoryFeeId];
 }

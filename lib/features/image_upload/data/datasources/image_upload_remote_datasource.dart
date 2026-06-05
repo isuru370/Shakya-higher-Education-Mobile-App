@@ -1,27 +1,27 @@
 import 'dart:convert';
-import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/http.dart';
+// ignore: depend_on_referenced_packages
+import 'package:http_parser/http_parser.dart';
 
 import '../../../../core/constants/api_constants.dart';
-import '../models/fetch_quick_photo/fetch_quick_photo_request_model.dart';
-import '../models/fetch_quick_photo/fetch_quick_photo_response_model.dart';
+import '../../../../core/storage/session_storage.dart';
 import '../models/image_upload/image_upload_request_model.dart';
 import '../models/image_upload/image_upload_response_model.dart';
-import '../models/quick_photo/quick_photo_response_model.dart';
 
 class ImageUploadRemoteDatasource {
-  /// 1️⃣ Upload Image
   Future<ImageUploadResponseModel> uploadImage({
-    required String token,
     required ImageUploadRequestModel request,
   }) async {
-    final uri = Uri.parse('${ApiConstants.apiUrl}/image-upload/upload');
+    final token = await SessionStorage.getToken();
+    final uri = Uri.parse('${ApiConstants.apiUrl}/quick-photo/upload');
 
     final multipartRequest = http.MultipartRequest('POST', uri);
 
-    multipartRequest.headers.addAll({'Authorization': 'Bearer $token'});
+    if (token != null && token.isNotEmpty) {
+      multipartRequest.headers['Authorization'] = 'Bearer $token';
+    }
 
     multipartRequest.files.add(
       await http.MultipartFile.fromPath(
@@ -36,64 +36,17 @@ class ImageUploadRemoteDatasource {
 
     final decoded = jsonDecode(response.body);
 
-    if (response.statusCode == 200) {
-      return ImageUploadResponseModel.fromJson(decoded);
+    debugPrint('Response status: ${response.statusCode}');
+    debugPrint('Response body: ${response.body}');
+
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      return ImageUploadResponseModel.fromJson(decoded as Map<String, dynamic>);
     } else {
-      throw Exception(decoded['message'] ?? 'Upload failed');
-    }
-  }
-
-  /// 2️⃣ Create Quick Photo
-  Future<QuickPhotoResponseModel> createQuickPhoto({
-    required String token,
-    required String imageUrl,
-    required int gradeId,
-  }) async {
-    final response = await http.post(
-      Uri.parse('${ApiConstants.apiUrl}/quick-photos'),
-      headers: ApiConstants.headers(token: token),
-      body: jsonEncode({
-        'quick_img': imageUrl, // uploaded image URL from previous step
-        'grade_id': gradeId, // grade selected by user
-      }),
-    );
-
-    if (response.statusCode == 200) {
-      return QuickPhotoResponseModel.fromJson(jsonDecode(response.body));
-    } else {
-      throw Exception(response.body);
-    }
-  }
-
-  Future<FetchQuickPhotoResponseModel> fetchQuickPhoto({
-    required String token,
-    required FetchQuickPhotoRequestModel request,
-  }) async {
-    try {
-      final response = await http
-          .get(
-            Uri.parse(
-              '${ApiConstants.apiUrl}/quick-photos/${request.quickImageId}',
-            ),
-            headers: ApiConstants.headers(token: token),
-          )
-          .timeout(const Duration(seconds: 30));
-
-      final decoded = jsonDecode(response.body);
-
-      if (response.statusCode == 200) {
-        return FetchQuickPhotoResponseModel.fromJson(decoded);
-      } else if (response.statusCode == 409) {
-        throw Exception(decoded['message'] ?? 'Conflict error');
-      } else {
-        throw HttpException('Server error: ${response.statusCode}');
-      }
-    } on SocketException {
-      throw Exception('No internet connection');
-    } on FormatException {
-      throw Exception('Invalid response format');
-    } catch (e) {
-      throw Exception('Unexpected error: $e');
+      throw Exception(
+        decoded is Map<String, dynamic>
+            ? (decoded['message'] ?? 'Upload failed')
+            : 'Upload failed',
+      );
     }
   }
 }

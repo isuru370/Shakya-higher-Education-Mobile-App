@@ -1,11 +1,11 @@
 class ReadPaymentRequestModel {
-  final String customId;
+  final String qrCode;
 
-  ReadPaymentRequestModel({required this.customId});
+  ReadPaymentRequestModel({required this.qrCode});
 
   Map<String, dynamic> toQuery() {
     return {
-      'custom_id': customId,
+      'qr_code': qrCode,
     };
   }
 }

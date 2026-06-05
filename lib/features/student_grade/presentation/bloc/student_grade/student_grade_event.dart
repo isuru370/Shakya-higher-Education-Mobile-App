@@ -8,6 +8,4 @@ sealed class StudentGradeEvent extends Equatable {
 }
 
 class GetStudentGradesEvent extends StudentGradeEvent {
-  final String token;
-  const GetStudentGradesEvent({required this.token});
 }

@@ -1,21 +1,25 @@
 class ApiConstants {
-  static const String baseUrl = 'https://shakyaeducation.nexorait.lk';
-  //http://10.191.103.230:8000
-  //https://shakyaeducation.nexorait.lk
+  static const String baseUrl = 'http://10.208.53.230:8000';
   static const String apiUrl = '$baseUrl/api';
+
+  //http://10.208.53.230:8000
+  //https://minipalasaeducation.nexorait.lk
 
   static const String login = '$apiUrl/login';
   static const String logout = '$apiUrl/logout';
   static const String profile = '$apiUrl/profile';
 
-  // headers
   static const String contentType = 'Content-Type';
-  static const String applicationJson = 'application/json';
-  static const String authorization = 'Authorization';
   static const String accept = 'Accept';
+  static const String authorization = 'Authorization';
+
+  static const String applicationJson = 'application/json; charset=UTF-8';
 
   static Map<String, String> headers({String? token}) {
-    final headers = {contentType: applicationJson, accept: applicationJson};
+    final headers = <String, String>{
+      contentType: applicationJson,
+      accept: 'application/json',
+    };
 
     if (token != null && token.isNotEmpty) {
       headers[authorization] = 'Bearer $token';

@@ -1,8 +1,11 @@
 import '../students_model.dart';
 
 class CreateStudentRequestModel {
-  final String token;
-  final List<StudentModel> students;
+  final StudentModel student;
 
-  CreateStudentRequestModel({required this.token, required this.students});
+  const CreateStudentRequestModel({
+    required this.student,
+  });
+
+  Map<String, dynamic> toJson() => student.toJson();
 }

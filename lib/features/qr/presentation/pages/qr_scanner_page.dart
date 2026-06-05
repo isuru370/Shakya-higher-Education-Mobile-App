@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:nexorait_education_app/features/qr/data/model/read_tute/read_tute_request_model.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../../../core/enums/scan_type.dart';
@@ -15,9 +16,16 @@ import '../bloc/read_tute/read_tute_bloc.dart';
 
 class QrScannerPage extends StatefulWidget {
   final ScanType scanType;
-  final String token;
-
-  const QrScannerPage({super.key, required this.scanType, required this.token});
+  final int? studentClassId;
+  final int? classCategoryFeeId;
+  final int? classScheduleId;
+  const QrScannerPage({
+    super.key,
+    required this.scanType,
+    this.studentClassId,
+    this.classCategoryFeeId,
+    this.classScheduleId,
+  });
 
   @override
   State<QrScannerPage> createState() => _QrScannerPageState();
@@ -27,6 +35,7 @@ class _QrScannerPageState extends State<QrScannerPage> with RouteAware {
   bool _hasPermission = false;
   bool _isScanned = false;
   bool _isHandlingResult = false;
+  String _pendingMarkMethod = 'qr_mobile';
 
   final MobileScannerController _scannerController = MobileScannerController(
     autoStart: false,
@@ -114,7 +123,10 @@ class _QrScannerPageState extends State<QrScannerPage> with RouteAware {
       ..showSnackBar(SnackBar(content: Text(message)));
   }
 
-  Future<void> _handleScanValue(String value) async {
+  Future<void> _handleScanValue(
+    String value, {
+    required String markMethod,
+  }) async {
     if (!mounted) return;
     if (_isScanned || _isHandlingResult) return;
 
@@ -124,6 +136,7 @@ class _QrScannerPageState extends State<QrScannerPage> with RouteAware {
     setState(() {
       _isScanned = true;
       _isHandlingResult = true;
+      _pendingMarkMethod = markMethod;
     });
 
     _focusNode.unfocus();
@@ -131,35 +144,39 @@ class _QrScannerPageState extends State<QrScannerPage> with RouteAware {
 
     switch (widget.scanType) {
       case ScanType.attendance:
-        context.read<ReadAttendanceBloc>().add(
-          ReadAttendanceRequested(token: widget.token, customId: trimmedValue),
-        );
+        if (widget.studentClassId != null &&
+            widget.classCategoryFeeId != null) {
+          context.read<ReadAttendanceBloc>().add(
+            ReadAttendanceRequested(
+              qrCode: trimmedValue,
+              studentClassId: widget.studentClassId!,
+              classCategoryFeeId: widget.classCategoryFeeId!,
+            ),
+          );
+        }
         break;
 
       case ScanType.payment:
-        context.read<ReadPaymentBloc>().add(
-          ReadPaymentRequested(token: widget.token, customId: trimmedValue),
-        );
+        context.read<ReadPaymentBloc>().add(ReadPaymentRequested(trimmedValue));
         break;
 
       case ScanType.student:
         context.read<ReadStudentBloc>().add(
-          ReadStudentRequested(token: widget.token, customId: trimmedValue),
+          ReadStudentRequested(qrCode: trimmedValue),
         );
         break;
 
       case ScanType.tute:
         context.read<ReadTuteBloc>().add(
-          ReadTuteRequested(token: widget.token, customId: trimmedValue),
+          ReadTuteRequested(
+            readTuteRequestModel: ReadTuteRequestModel(qrCode: trimmedValue),
+          ),
         );
         break;
 
       case ScanType.classes:
         context.read<ReadStudentClassesBloc>().add(
-          ReadStudentClassesRequested(
-            token: widget.token,
-            qrCode: trimmedValue,
-          ),
+          ReadStudentClassesRequested(qrCode: trimmedValue),
         );
         break;
     }
@@ -167,7 +184,7 @@ class _QrScannerPageState extends State<QrScannerPage> with RouteAware {
 
   void _handleManualSubmit() {
     final customId = _customIdController.text.toUpperCase().trim();
-    _handleScanValue(customId);
+    _handleScanValue(customId, markMethod: 'manual_mobile');
   }
 
   String _getTitle() {
@@ -191,7 +208,7 @@ class _QrScannerPageState extends State<QrScannerPage> with RouteAware {
       return Scaffold(
         appBar: AppBar(
           title: const Text('Camera Permission'),
-          backgroundColor: AppTheme.primaryColor,
+          backgroundColor: AppTheme.lightTheme.primaryColor,
         ),
         body: Center(
           child: Padding(
@@ -225,18 +242,18 @@ class _QrScannerPageState extends State<QrScannerPage> with RouteAware {
               current is ReadAttendanceLoaded || current is ReadAttendanceError,
           listener: (context, state) async {
             if (state is ReadAttendanceLoaded) {
-              if (state.attendanceList.isEmpty) {
-                _showSnackBar('Class not available for this student.');
-                _resetScanner();
-              } else {
-                await _safeStopScanner();
-                if (!mounted) return;
-                Navigator.pushNamed(
-                  context,
-                  '/attendance-details',
-                  arguments: {'token': widget.token, 'attendanceState': state},
-                );
-              }
+              await _safeStopScanner();
+              if (!mounted) return;
+
+              Navigator.pushNamed(
+                context,
+                '/attendance-details',
+                arguments: {
+                  'attendanceData': state.data,
+                  'class_schedule_id': widget.classScheduleId,
+                  'mark_method': _pendingMarkMethod,
+                },
+              );
             }
 
             if (state is ReadAttendanceError) {
@@ -250,18 +267,25 @@ class _QrScannerPageState extends State<QrScannerPage> with RouteAware {
               current is ReadPaymentLoaded || current is ReadPaymentError,
           listener: (context, state) async {
             if (state is ReadPaymentLoaded) {
-              if (state.response.data.isEmpty) {
+              final response = state.response;
+
+              if (response.data == null) {
                 _showSnackBar('No payment records found.');
                 _resetScanner();
-              } else {
-                await _safeStopScanner();
-                if (!mounted) return;
-                Navigator.pushNamed(
-                  context,
-                  '/payment-details',
-                  arguments: {'token': widget.token, 'paymentState': state},
-                );
+                return;
               }
+
+              await _safeStopScanner();
+              if (!mounted) return;
+
+              Navigator.pushNamed(
+                context,
+                '/payment-details',
+                arguments: {
+                  'paymentState': state,
+                  'mark_method': _pendingMarkMethod,
+                },
+              );
             }
 
             if (state is ReadPaymentError) {
@@ -275,21 +299,18 @@ class _QrScannerPageState extends State<QrScannerPage> with RouteAware {
               current is ReadStudentLoaded || current is ReadStudentError,
           listener: (context, state) async {
             if (state is ReadStudentLoaded) {
-              final student = state.response.data;
+              final student = state.response.student;
               if (student != null) {
                 await _safeStopScanner();
                 if (!mounted) return;
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => SingleStudentViewPage(
-                      token: widget.token,
-                      student: student,
-                    ),
+                    builder: (_) => SingleStudentViewPage(student: student),
                   ),
                 );
               } else {
-                _showSnackBar(state.response.message ?? 'Student not found');
+                _showSnackBar(state.response.message);
                 _resetScanner();
               }
             }
@@ -305,26 +326,24 @@ class _QrScannerPageState extends State<QrScannerPage> with RouteAware {
               current is ReadTuteSuccess || current is ReadTuteFailure,
           listener: (context, state) async {
             if (state is ReadTuteSuccess) {
-              final tuteData = state.response.data;
-              if (tuteData.isNotEmpty) {
-                await _safeStopScanner();
-                if (!mounted) return;
-                Navigator.pushNamed(
-                  context,
-                  '/read_tute',
-                  arguments: {
-                    'token': widget.token,
-                    'read_tute_success': state.response,
-                  },
-                );
-              } else {
-                _showSnackBar('Tute data not found');
-                _resetScanner();
-              }
-            }
+              _showSnackBar(state.response.message);
 
-            if (state is ReadTuteFailure) {
+              await _safeStopScanner();
+
+              if (!mounted) return;
+
+              await Navigator.pushReplacementNamed(
+                context,
+                '/student-tute-screen',
+                arguments: state.response,
+              );
+
+              if (!mounted) return;
+
+              _resetScanner();
+            } else if (state is ReadTuteFailure) {
               _showSnackBar(state.message);
+
               _resetScanner();
             }
           },
@@ -333,28 +352,27 @@ class _QrScannerPageState extends State<QrScannerPage> with RouteAware {
           listenWhen: (previous, current) =>
               current is ReadStudentClassesSuccess ||
               current is ReadStudentClassesError,
+
           listener: (context, state) async {
             if (state is ReadStudentClassesSuccess) {
-              _showSnackBar(state.response.message);
+              _showSnackBar(state.response.message ?? 'Success');
 
               await _safeStopScanner();
+
               if (!mounted) return;
 
-              await Navigator.pushNamed(
+              await Navigator.pushReplacementNamed(
                 context,
                 '/add-student-class',
-                arguments: {
-                  'token': widget.token,
-                  'read_student_classes_state': state.response,
-                },
+                arguments: state.response,
               );
 
               if (!mounted) return;
-              _resetScanner();
-            }
 
-            if (state is ReadStudentClassesError) {
+              _resetScanner();
+            } else if (state is ReadStudentClassesError) {
               _showSnackBar(state.message);
+
               _resetScanner();
             }
           },
@@ -362,7 +380,7 @@ class _QrScannerPageState extends State<QrScannerPage> with RouteAware {
       ],
       child: Scaffold(
         appBar: AppBar(
-          backgroundColor: AppTheme.primaryColor,
+          backgroundColor: AppTheme.lightTheme.primaryColor,
           title: Text(_getTitle()),
           centerTitle: true,
         ),
@@ -377,7 +395,7 @@ class _QrScannerPageState extends State<QrScannerPage> with RouteAware {
                 final value = capture.barcodes.first.rawValue;
                 if (value == null || value.trim().isEmpty) return;
 
-                _handleScanValue(value);
+                _handleScanValue(value, markMethod: 'qr_mobile');
               },
             ),
             Center(
@@ -387,7 +405,9 @@ class _QrScannerPageState extends State<QrScannerPage> with RouteAware {
                   height: 250,
                   decoration: BoxDecoration(
                     border: Border.all(
-                      color: AppTheme.primaryColor.withValues(alpha: 0.6),
+                      color: AppTheme.lightTheme.primaryColor.withValues(
+                        alpha: 0.6,
+                      ),
                       width: 3,
                     ),
                     borderRadius: BorderRadius.circular(12),

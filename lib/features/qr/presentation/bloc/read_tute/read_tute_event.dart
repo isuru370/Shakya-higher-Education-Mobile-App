@@ -4,18 +4,16 @@ sealed class ReadTuteEvent extends Equatable {
   const ReadTuteEvent();
 
   @override
-  List<Object> get props => [];
+  List<Object?> get props => [];
 }
 
 class ReadTuteRequested extends ReadTuteEvent {
-  final String token;
-  final String customId;
+  final ReadTuteRequestModel readTuteRequestModel;
 
   const ReadTuteRequested({
-    required this.token,
-    required this.customId,
+    required this.readTuteRequestModel,
   });
 
   @override
-  List<Object> get props => [token, customId];
+  List<Object?> get props => [readTuteRequestModel];
 }

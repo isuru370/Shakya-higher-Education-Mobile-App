@@ -2,9 +2,9 @@ part of 'read_tute_bloc.dart';
 
 sealed class ReadTuteState extends Equatable {
   const ReadTuteState();
-  
+
   @override
-  List<Object> get props => [];
+  List<Object?> get props => [];
 }
 
 final class ReadTuteInitial extends ReadTuteState {}
@@ -17,7 +17,7 @@ final class ReadTuteSuccess extends ReadTuteState {
   const ReadTuteSuccess({required this.response});
 
   @override
-  List<Object> get props => [response];
+  List<Object?> get props => [response];
 }
 
 final class ReadTuteFailure extends ReadTuteState {
@@ -26,5 +26,5 @@ final class ReadTuteFailure extends ReadTuteState {
   const ReadTuteFailure({required this.message});
 
   @override
-  List<Object> get props => [message];
+  List<Object?> get props => [message];
 }

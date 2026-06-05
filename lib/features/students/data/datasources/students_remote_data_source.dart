@@ -2,26 +2,25 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:nexorait_education_app/features/students/data/models/create_student/create_student_response_model.dart';
 
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/errors/app_exceptions.dart';
+import '../../../../core/storage/session_storage.dart';
+import '../models/create_student/create_student_response_model.dart';
 import '../models/student_custom_ids/students_custom_id_request_model.dart';
 import '../models/student_custom_ids/students_custom_id_response_model.dart';
 import '../models/students_model.dart';
-import '../models/students_model/students_request_model.dart';
 import '../models/students_model/students_response_model.dart';
 
 class StudentRemoteDataSource {
-  Future<StudentsResponseModel> getStudents(
-    StudentsRequestModel request,
-  ) async {
+  Future<StudentsResponseModel> getStudents() async {
     try {
+      final token = await SessionStorage.getToken();
       final uri = Uri.parse('${ApiConstants.apiUrl}/students');
 
       final response = await http.get(
         uri,
-        headers: ApiConstants.headers(token: request.token),
+        headers: ApiConstants.headers(token: token),
       );
 
       debugPrint('GET STUDENTS RESPONSE CODE: ${response.statusCode}');
@@ -40,11 +39,9 @@ class StudentRemoteDataSource {
     }
   }
 
-  Future<List<StudentModel>> searchStudent(
-    String token,
-    String studentCustomId,
-  ) async {
+  Future<List<StudentModel>> searchStudent(String studentCustomId) async {
     try {
+      final token = await SessionStorage.getToken();
       final uri = Uri.parse(
         '${ApiConstants.apiUrl}/students/search/$studentCustomId',
       );
@@ -79,6 +76,7 @@ class StudentRemoteDataSource {
     StudentsCustomIdRequestModel request,
   ) async {
     try {
+      final token = await SessionStorage.getToken();
       final uri = Uri.parse('${ApiConstants.apiUrl}/students/custom_ids')
           .replace(
             queryParameters: {
@@ -89,7 +87,7 @@ class StudentRemoteDataSource {
 
       final response = await http.get(
         uri,
-        headers: ApiConstants.headers(token: request.token),
+        headers: ApiConstants.headers(token: token),
       );
 
       debugPrint(
@@ -110,32 +108,44 @@ class StudentRemoteDataSource {
     }
   }
 
-  Future<CreateStudentResponseModel> createStudent(
-    StudentModel student,
-    String token,
-  ) async {
+  Future<CreateStudentResponseModel> createStudent(StudentModel student) async {
     try {
-      final uri = Uri.parse('${ApiConstants.apiUrl}/students');
-      final body = jsonEncode(student.toJson());
+      final token = await SessionStorage.getToken();
+      final uri = Uri.parse('${ApiConstants.apiUrl}/student');
 
       final response = await http.post(
         uri,
-        headers: ApiConstants.headers(token: token),
-        body: body,
+        headers: {
+          ...ApiConstants.headers(token: token),
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode(student.toJson()),
       );
 
       debugPrint('CREATE STUDENT RESPONSE CODE: ${response.statusCode}');
       debugPrint('CREATE STUDENT RESPONSE BODY: ${response.body}');
 
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> decoded =
-            jsonDecode(response.body) as Map<String, dynamic>;
-        return CreateStudentResponseModel.fromJson(decoded);
-      } else if (response.statusCode == 401) {
-        throw UnauthorizedException('Unauthorized');
-      } else {
-        throw ServerException('Server Error', response.statusCode);
+      final decoded = jsonDecode(response.body);
+
+      if (response.statusCode == 201) {
+        return CreateStudentResponseModel.fromJson(
+          decoded as Map<String, dynamic>,
+        );
       }
+
+      if (response.statusCode == 401) {
+        throw UnauthorizedException('Unauthorized');
+      }
+
+      if (decoded is Map<String, dynamic> && decoded['message'] != null) {
+        throw ServerException(
+          decoded['message'].toString(),
+          response.statusCode,
+        );
+      }
+
+      throw ServerException('Server Error', response.statusCode);
     } catch (e) {
       debugPrint('CREATE STUDENT ERROR: $e');
       rethrow;

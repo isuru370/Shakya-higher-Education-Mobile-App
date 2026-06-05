@@ -4,18 +4,14 @@ sealed class ReadPaymentEvent extends Equatable {
   const ReadPaymentEvent();
 
   @override
-  List<Object> get props => [];
+  List<Object?> get props => [];
 }
 
 class ReadPaymentRequested extends ReadPaymentEvent {
-  final String token;
-  final String customId;
+  final String qrCode;
 
-  const ReadPaymentRequested({
-    required this.token,
-    required this.customId,
-  });
+  const ReadPaymentRequested(this.qrCode);
 
   @override
-  List<Object> get props => [token, customId];
+  List<Object?> get props => [qrCode];
 }

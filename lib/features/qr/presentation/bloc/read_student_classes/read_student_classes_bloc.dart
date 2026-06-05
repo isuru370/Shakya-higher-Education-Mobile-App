@@ -26,7 +26,6 @@ class ReadStudentClassesBloc
     try {
       final response = await readStudentClassesUseCase(
         ReadStudentClassesRequestModel(
-          token: event.token,
           qrCode: event.qrCode,
         ),
       );

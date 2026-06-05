@@ -2,6 +2,10 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../data/models/atendance_request_model.dart';
+import '../../../data/models/attendance_history/attendance_history_request_model.dart';
+import '../../../data/models/attendance_history/attendance_history_response_model.dart';
+import '../../../data/models/attendance_response_model.dart';
+import '../../../domain/usecases/get_attendance_history_usecase.dart';
 import '../../../domain/usecases/mark_attendance_usecase.dart';
 
 part 'attendance_event.dart';
@@ -9,10 +13,14 @@ part 'attendance_state.dart';
 
 class AttendanceBloc extends Bloc<AttendanceEvent, AttendanceState> {
   final MarkAttendanceUseCase markAttendanceUseCase;
+  final GetAttendanceHistoryUseCase getAttendanceHistoryUseCase;
 
-  AttendanceBloc({required this.markAttendanceUseCase})
-    : super(AttendanceInitial()) {
+  AttendanceBloc({
+    required this.markAttendanceUseCase,
+    required this.getAttendanceHistoryUseCase,
+  }) : super(AttendanceInitial()) {
     on<MarkAttendanceRequested>(_onMarkAttendanceRequested);
+    on<AttendanceHistoryRequested>(_onAttendanceHistoryRequested);
   }
 
   Future<void> _onMarkAttendanceRequested(
@@ -22,32 +30,38 @@ class AttendanceBloc extends Bloc<AttendanceEvent, AttendanceState> {
     emit(AttendanceLoading());
 
     try {
-      // Create request model
-      final request = AttendanceRequestModel(
-        studentId: event.studentId,
-        studentStudentClassId: event.studentClassId,
-        attendanceId: event.attendanceId,
-        tute: event.tute,
-        classCategoryHasStudentClassId: event.classCategoryHasStudentClassId,
-        guardianMobile: event.guardianMobile,
-      );
+      final result = await markAttendanceUseCase(request: event.request);
 
-      // Call usecase
-      final result = await markAttendanceUseCase(
-        token: event.token,
-        request: request,
-      );
-
-      // Emit success with full API response
-      emit(
-        AttendanceSuccess(
-          message: result.message, // <-- Fixed
-          attendanceMarked: result.attendanceMarked,
-          tuteMarked: result.tuteMarked,
-        ),
-      );
+      emit(AttendanceSuccess(message: result.message, response: result));
     } catch (e) {
-      emit(AttendanceError(message: e.toString()));
+      emit(AttendanceError(message: _extractErrorMessage(e)));
     }
+  }
+
+  Future<void> _onAttendanceHistoryRequested(
+    AttendanceHistoryRequested event,
+    Emitter<AttendanceState> emit,
+  ) async {
+    emit(AttendanceHistoryLoading());
+
+    try {
+      final result = await getAttendanceHistoryUseCase(request: event.request);
+
+      emit(AttendanceHistoryLoaded(response: result));
+    } catch (e) {
+      emit(AttendanceHistoryError(message: _extractErrorMessage(e)));
+    }
+  }
+
+  String _extractErrorMessage(Object error) {
+    final message = error.toString();
+    final regex = RegExp(r'"message"\s*:\s*"([^"]+)"');
+    final match = regex.firstMatch(message);
+
+    if (match != null) {
+      return match.group(1) ?? 'Operation failed';
+    }
+
+    return message.replaceAll('Exception: ', '');
   }
 }

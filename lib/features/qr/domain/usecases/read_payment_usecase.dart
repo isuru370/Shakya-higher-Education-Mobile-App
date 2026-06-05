@@ -7,12 +7,10 @@ class ReadPaymentUseCase {
   ReadPaymentUseCase(this.repository);
 
   Future<ReadPaymentResponseModel> call({
-    required String token,
-    required String customId,
+    required String qrCode,
   }) {
     return repository.readPayment(
-      token: token,
-      customId: customId,
+      qrCode: qrCode,
     );
   }
 }

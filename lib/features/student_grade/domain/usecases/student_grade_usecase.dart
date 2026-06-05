@@ -6,9 +6,8 @@ class StudentGradeUsecase {
 
   const StudentGradeUsecase(this.repository);
 
-  Future<StudentGradeResponseModel> execute(String token) async {
+  Future<StudentGradeResponseModel> execute() async {
     return await repository.getStudentGrade(
-      token,
     );
   }
 }

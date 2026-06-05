@@ -1,19 +1,21 @@
 class QuickPhotoModel {
   final String customId;
-  final String quickImg;
-  final int gradeId;
+  final String imagePath;
+  final String imageUrl;
 
   QuickPhotoModel({
     required this.customId,
-    required this.quickImg,
-    required this.gradeId,
+    required this.imagePath,
+    required this.imageUrl,
   });
 
   factory QuickPhotoModel.fromJson(Map<String, dynamic> json) {
+    final data = json["data"] ?? {};
+
     return QuickPhotoModel(
-      customId: json["data"]["custom_id"],
-      quickImg: json["data"]["quick_img"],
-      gradeId: json["data"]["grade_id"],
+      customId: data["custom_id"] ?? '',
+      imagePath: data["image_path"] ?? '',
+      imageUrl: data["image_url"] ?? '',
     );
   }
 }

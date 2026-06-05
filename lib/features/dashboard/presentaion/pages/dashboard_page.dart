@@ -1,652 +1,921 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nexorait_education_app/core/enums/scan_type.dart';
 
-import '../../../../core/enums/scan_type.dart';
-import '../../../../core/theme/app_theme.dart';
+import '../../../../core/storage/session_storage.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../auth/data/models/user_model.dart';
-import '../../../auth/presentation/bloc/auth/auth_bloc.dart';
-import '../../data/models/student_mini_model.dart';
-import '../../data/models/today_class_model.dart';
 import '../bloc/mobile_dashboard/mobile_dashboard_bloc.dart';
-import '../bloc/sms/sms_bloc.dart';
 
 class DashboardPage extends StatefulWidget {
-  final String token;
-  final UserModel userModel;
-  const DashboardPage({
-    super.key,
-    required this.token,
-    required this.userModel,
-  });
+  const DashboardPage({super.key});
 
   @override
   State<DashboardPage> createState() => _DashboardPageState();
 }
 
 class _DashboardPageState extends State<DashboardPage> {
+  String? _token;
+  UserModel? _user;
+
+  bool _loadingSession = true;
+
   @override
   void initState() {
     super.initState();
-    context.read<MobileDashboardBloc>().add(
-      GetMobileDashboardEvent(widget.token),
-    );
-    context.read<SmsBloc>().add(GetSmsBalanceEvent(token: widget.token));
+
+    _loadSession();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<MobileDashboardBloc>().add(GetMobileDashboardEvent());
+      }
+    });
+  }
+
+  Future<void> _loadSession() async {
+    final token = await SessionStorage.getToken();
+
+    final user = await SessionStorage.getUser();
+
+    if (!mounted) return;
+
+    setState(() {
+      _token = token;
+      _user = user;
+      _loadingSession = false;
+    });
+  }
+
+  Future<void> _refreshDashboard() async {
+    context.read<MobileDashboardBloc>().add(GetMobileDashboardEvent());
+
+    await _loadSession();
+  }
+
+  Future<void> _logout() async {
+    await SessionStorage.clear();
+
+    if (!mounted) return;
+
+    Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+  }
+
+  String _money(dynamic value) {
+    if (value == null) return '-';
+
+    final text = value.toString();
+
+    if (text.trim().isEmpty) {
+      return '-';
+    }
+
+    return text;
+  }
+
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+
+    if (hour < 12) {
+      return 'Good Morning 👋';
+    }
+
+    if (hour < 17) {
+      return 'Good Afternoon ☀️';
+    }
+
+    return 'Good Evening 🌙';
   }
 
   @override
   Widget build(BuildContext context) {
+    final userName = _user?.name ?? 'Guest User';
+
+    final userEmail = _user?.email ?? 'No Email';
+
+    final width = MediaQuery.of(context).size.width;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Dashboard'),
-        backgroundColor: Colors.blue,
-        elevation: 0,
+      backgroundColor: AppColors.background,
+
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: AppColors.primary,
+
+        onPressed: () {
+          Navigator.pushNamed(
+            context,
+            '/qr-scan',
+            arguments: {'type': ScanType.student},
+          );
+        },
+
+        icon: const Icon(Icons.qr_code_scanner_rounded, color: Colors.white),
+
+        label: const Text(
+          'Search Student',
+
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+        ),
       ),
-      drawer: _buildDrawer(context),
 
-      // 🔥 BODY UPDATED (Everything else unchanged)
-      body: BlocBuilder<MobileDashboardBloc, MobileDashboardState>(
-        builder: (context, state) {
-          if (state is MobileDashboardLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      appBar: AppBar(
+        elevation: 0,
 
-          if (state is MobileDashboardError) {
-            return Center(child: Text(state.message));
-          }
+        backgroundColor: AppColors.primary,
 
-          if (state is MobileDashboardLoaded) {
-            final data = state.dashboard.data;
+        title: const Text(
+          'Dashboard',
 
-            return RefreshIndicator(
-              onRefresh: () async {
-                context.read<MobileDashboardBloc>().add(
-                  GetMobileDashboardEvent(widget.token),
-                );
+          style: TextStyle(fontWeight: FontWeight.w800, color: Colors.white),
+        ),
 
-                context.read<SmsBloc>().add(
-                  GetSmsBalanceEvent(token: widget.token),
-                );
-              },
-              child: ListView(
-                padding: const EdgeInsets.all(16),
+        iconTheme: const IconThemeData(color: Colors.white),
+
+        actions: [
+          IconButton(
+            onPressed: _refreshDashboard,
+
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+
+          IconButton(
+            onPressed: () {
+              Navigator.pushNamed(context, '/print_test_screen');
+            },
+            icon: Icon(Icons.print_rounded),
+          ),
+          IconButton(
+            onPressed: () {},
+
+            icon: Stack(
+              children: [
+                const Icon(Icons.notifications_rounded),
+
+                Positioned(
+                  right: 0,
+                  top: 0,
+
+                  child: Container(
+                    width: 10,
+                    height: 10,
+
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(width: 8),
+        ],
+      ),
+
+      drawer: Drawer(
+        child: Column(
+          children: [
+            // =========================
+            // HEADER
+            // =========================
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.only(
+                top: 60,
+                left: 20,
+                right: 20,
+                bottom: 24,
+              ),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [AppColors.primary, Color(0xff1D4ED8)],
+                ),
+              ),
+              child: Row(
                 children: [
-                  // 🔹 ICON + SEARCH STUDENT BUTTON (UNCHANGED FEATURE)
-                  Center(
+                  CircleAvatar(
+                    radius: 32,
+                    backgroundColor: Colors.white,
+                    child: Text(
+                      userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
+                      style: const TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.dark,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(
-                          Icons.dashboard,
-                          size: 64,
-                          color: Colors.blue,
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.pushNamed(
-                              context,
-                              '/qr-scan',
-                              arguments: {
-                                'scanType': ScanType.student,
-                                'token': widget.token,
-                              },
-                            );
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor:
-                                AppTheme.primaryColor, // NexOra blue
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                              vertical: 14,
-                              horizontal: 20,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            elevation: 3,
-                          ),
-                          icon: const Icon(Icons.search, size: 20),
-                          label: const Text(
-                            'Search Student',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
+                        Text(
+                          userName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
-
-                        const SizedBox(height: 24),
-                        const Text(
-                          'Welcome to Dashboard',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Use the menu to navigate',
-                          style: TextStyle(fontSize: 16, color: Colors.grey),
+                        const SizedBox(height: 4),
+                        Text(
+                          userEmail,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: Colors.white70),
                         ),
                       ],
                     ),
                   ),
+                ],
+              ),
+            ),
 
-                  const SizedBox(height: 32),
+            // =========================
+            // SCROLLABLE CONTENT (ListView)
+            // =========================
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  const SizedBox(height: 8),
 
-                  // 🔹 SUMMARY CARDS
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildCard(
-                          title: "Daily Collection",
-                          value:
-                              "Rs. ${data.dailyCollection.toStringAsFixed(2)}",
-                          icon: Icons.monetization_on,
-                          color: Colors.green,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildCard(
-                          title: "New Students",
-                          value: data.todayRegisteredStudentsCount.toString(),
-                          icon: Icons.people,
-                          color: Colors.blue,
-                        ),
-                      ),
-                    ],
+                  // SECTION 1: STUDENT MANAGEMENT
+                  _sectionHeader('STUDENT MANAGEMENT', Icons.people_rounded),
+
+                  _drawerTile(
+                    icon: Icons.person_add_alt_1_rounded,
+                    title: 'Create Student',
+                    onTap: () {
+                      Navigator.pushNamed(context, '/create_student');
+                    },
                   ),
 
-                  const SizedBox(height: 12),
-
-                  BlocBuilder<SmsBloc, SmsState>(
-                    builder: (context, smsState) {
-                      if (smsState is SmsLoading) {
-                        return _buildCard(
-                          title: "SMS Balance",
-                          value: "Loading...",
-                          icon: Icons.sms,
-                          color: Colors.orange,
-                        );
-                      }
-
-                      if (smsState is SmsLoaded) {
-                        return _buildCard(
-                          title: "SMS Balance",
-                          value: smsState.response.data.currentBalance,
-                          icon: Icons.sms,
-                          color: Colors.orange,
-                        );
-                      }
-
-                      if (smsState is SmsError) {
-                        return _buildCard(
-                          title: "SMS Balance",
-                          value: "Unavailable",
-                          icon: Icons.sms_failed,
-                          color: Colors.red,
-                        );
-                      }
-
-                      return _buildCard(
-                        title: "SMS Balance",
-                        value: "--",
-                        icon: Icons.sms,
-                        color: Colors.orange,
+                  _drawerTile(
+                    icon: Icons.image_outlined,
+                    title: 'Capture Image',
+                    onTap: () {
+                      Navigator.pushNamed(
+                        context,
+                        '/image_capture',
+                        arguments: {'registered': false},
                       );
                     },
                   ),
 
-                  const SizedBox(height: 24),
-
-                  const Text(
-                    "Today's Classes",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  _drawerTile(
+                    icon: Icons.people_alt_rounded,
+                    title: 'Students',
+                    onTap: () {
+                      Navigator.pushNamed(context, '/students');
+                    },
                   ),
 
-                  const SizedBox(height: 12),
-
-                  ...data.todayClasses.map(
-                    (classItem) => _buildClassCard(classItem),
+                  _drawerTile(
+                    icon: Icons.school_rounded,
+                    title: 'Student Images',
+                    onTap: () {
+                      Navigator.pushNamed(context, '/student_image_page');
+                    },
                   ),
 
-                  const Text(
-                    "Today's Registered Students",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  const Divider(height: 24, thickness: 1),
+
+                  // SECTION 2: CLASS & ATTENDANCE
+                  _sectionHeader('CLASS & ATTENDANCE', Icons.class_rounded),
+
+                  _drawerTile(
+                    icon: Icons.payments_rounded,
+                    title: 'Add Class',
+                    onTap: () {
+                      Navigator.pushNamed(
+                        context,
+                        '/qr-scan',
+                        arguments: {'type': ScanType.classes},
+                      );
+                    },
                   ),
 
-                  const SizedBox(height: 12),
-
-                  ...data.todayRegisteredStudents.map(
-                    (registeredStudent) =>
-                        _buildStudentRegisteredCard(registeredStudent),
+                  _drawerTile(
+                    icon: Icons.fact_check_rounded,
+                    title: 'Attendance',
+                    onTap: () {
+                      Navigator.pushNamed(context, '/today-class');
+                    },
                   ),
+
+                  const Divider(height: 24, thickness: 1),
+
+                  // SECTION 3: FINANCIAL
+                  _sectionHeader('FINANCIAL', Icons.attach_money_rounded),
+
+                  _drawerTile(
+                    icon: Icons.payments_rounded,
+                    title: 'Payment',
+                    onTap: () {
+                      Navigator.pushNamed(
+                        context,
+                        '/qr-scan',
+                        arguments: {'type': ScanType.payment},
+                      );
+                    },
+                  ),
+
+                  _drawerTile(
+                    icon: Icons.monetization_on_outlined,
+                    title: 'Today Payments',
+                    onTap: () {
+                      Navigator.pushNamed(context, '/today-payment');
+                    },
+                  ),
+
+                  const Divider(height: 24, thickness: 1),
+
+                  // SECTION 4: OTHER
+                  _sectionHeader('OTHER', Icons.more_horiz_rounded),
+
+                  _drawerTile(
+                    icon: Icons.menu_book_rounded,
+                    title: 'Student Tute',
+                    onTap: () {
+                      Navigator.pushNamed(
+                        context,
+                        '/qr-scan',
+                        arguments: {'type': ScanType.tute},
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 16),
                 ],
               ),
-            );
-          }
+            ),
 
-          return const SizedBox();
-        },
+            // =========================
+            // FOOTER: LOGOUT (Always at bottom)
+            // =========================
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: _drawerTile(
+                  icon: Icons.logout_rounded,
+                  title: 'Logout',
+                  color: AppColors.danger,
+                  onTap: _logout,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+
+      // Helper method for section headers
+      body: _loadingSession
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator.adaptive(
+              onRefresh: _refreshDashboard,
+
+              child: BlocBuilder<MobileDashboardBloc, MobileDashboardState>(
+                builder: (context, state) {
+                  // =========================
+                  // LOADING
+                  // =========================
+
+                  if (state is MobileDashboardLoading) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  // =========================
+                  // ERROR
+                  // =========================
+
+                  if (state is MobileDashboardError) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+
+                        child: Container(
+                          padding: const EdgeInsets.all(24),
+
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+
+                            borderRadius: BorderRadius.circular(30),
+
+                            boxShadow: AppColors.softShadow,
+                          ),
+
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+
+                            children: [
+                              const Icon(
+                                Icons.error_outline_rounded,
+
+                                size: 70,
+
+                                color: AppColors.danger,
+                              ),
+
+                              const SizedBox(height: 14),
+
+                              Text(
+                                state.message,
+
+                                textAlign: TextAlign.center,
+
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+
+                  // =========================
+                  // EMPTY
+                  // =========================
+
+                  if (state is! MobileDashboardLoaded) {
+                    return const Center(child: Text('No dashboard data'));
+                  }
+
+                  final dashboard = state.dashboard.data;
+
+                  return ListView(
+                    padding: const EdgeInsets.all(20),
+
+                    children: [
+                      // =========================
+                      // HERO CARD
+                      // =========================
+                      _heroCard(
+                        userName: userName,
+
+                        userEmail: userEmail,
+
+                        smsBalance: _money(
+                          dashboard.smsBalance.data.currentBalance,
+                        ),
+
+                        tokenActive: _token != null,
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // =========================
+                      // MINI STATS
+                      // =========================
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _miniStat(
+                              title: 'Revenue',
+
+                              value:
+                                  'LKR ${_money(dashboard.todayPaymentCollection)}',
+
+                              icon: Icons.payments_rounded,
+
+                              color: AppColors.success,
+                            ),
+                          ),
+
+                          const SizedBox(width: 12),
+
+                          Expanded(
+                            child: _miniStat(
+                              title: 'Today Classes',
+
+                              value: dashboard.todayClassCount.toString(),
+
+                              icon: Icons.today_rounded,
+
+                              color: AppColors.warning,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // =========================
+                      // QUICK ACTIONS
+                      // =========================
+                      const Text(
+                        'Quick Actions',
+
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.dark,
+                        ),
+                      ),
+
+                      const SizedBox(height: 18),
+
+                      GridView.count(
+                        shrinkWrap: true,
+
+                        physics: const NeverScrollableScrollPhysics(),
+
+                        crossAxisCount: width > 900
+                            ? 4
+                            : width > 600
+                            ? 3
+                            : 2,
+
+                        crossAxisSpacing: 14,
+
+                        mainAxisSpacing: 14,
+
+                        childAspectRatio: 1.0,
+
+                        children: [
+                          _QuickActionCard(
+                            icon: Icons.person_add_alt_1_rounded,
+
+                            label: 'Add Student',
+
+                            color: AppColors.primary,
+
+                            onTap: () {
+                              Navigator.pushNamed(context, '/create_student');
+                            },
+                          ),
+
+                          _QuickActionCard(
+                            icon: Icons.payments_rounded,
+
+                            label: 'Payment',
+
+                            color: AppColors.success,
+
+                            onTap: () {
+                              Navigator.pushNamed(
+                                context,
+                                '/qr-scan',
+
+                                arguments: {'type': ScanType.payment},
+                              );
+                            },
+                          ),
+
+                          _QuickActionCard(
+                            icon: Icons.class_rounded,
+
+                            label: 'Add Class',
+
+                            color: AppColors.secondary,
+
+                            onTap: () {
+                              Navigator.pushNamed(
+                                context,
+                                '/qr-scan',
+
+                                arguments: {'type': ScanType.classes},
+                              );
+                            },
+                          ),
+
+                          _QuickActionCard(
+                            icon: Icons.menu_book_rounded,
+
+                            label: 'Student Tute',
+
+                            color: AppColors.info,
+
+                            onTap: () {
+                              Navigator.pushNamed(
+                                context,
+                                '/qr-scan',
+
+                                arguments: {'type': ScanType.tute},
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // =========================
+                      // OVERVIEW
+                      // =========================
+                      const Text(
+                        'Overview',
+
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.dark,
+                        ),
+                      ),
+
+                      const SizedBox(height: 18),
+
+                      GridView.builder(
+                        shrinkWrap: true,
+
+                        physics: const NeverScrollableScrollPhysics(),
+
+                        itemCount: 6,
+
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: width > 900
+                              ? 4
+                              : width > 600
+                              ? 3
+                              : 2,
+
+                          crossAxisSpacing: 12,
+
+                          mainAxisSpacing: 12,
+
+                          childAspectRatio: 1.05,
+                        ),
+
+                        itemBuilder: (context, index) {
+                          final items = [
+                            (
+                              'Students',
+                              dashboard.totalStudent.toString(),
+                              Icons.people_alt_rounded,
+                              AppColors.primary,
+                            ),
+
+                            (
+                              'Teachers',
+                              dashboard.totalTeacher.toString(),
+                              Icons.school_rounded,
+                              AppColors.info,
+                            ),
+
+                            (
+                              'Classes',
+                              dashboard.totalClasses.toString(),
+                              Icons.class_rounded,
+                              AppColors.success,
+                            ),
+
+                            (
+                              'Today Sessions',
+                              dashboard.todayClassCount.toString(),
+                              Icons.today_rounded,
+                              AppColors.warning,
+                            ),
+
+                            (
+                              'Temporary',
+                              dashboard.temporaryStudentCount.toString(),
+                              Icons.qr_code_2_rounded,
+                              AppColors.danger,
+                            ),
+
+                            (
+                              'Permanent',
+                              dashboard.permanentStudentCount.toString(),
+                              Icons.verified_rounded,
+                              AppColors.secondary,
+                            ),
+                          ];
+
+                          final item = items[index];
+
+                          return _StatCard(
+                            title: item.$1,
+
+                            value: item.$2,
+
+                            icon: item.$3,
+
+                            color: item.$4,
+                          );
+                        },
+                      ),
+
+                      const SizedBox(height: 24),
+                    ],
+                  );
+                },
+              ),
+            ),
+    );
+  }
+
+  Widget _sectionHeader(String title, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: AppColors.primaryDark),
+          const SizedBox(width: 8),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: AppColors.primaryDark,
+              letterSpacing: 0.8,
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  // ---------------- CARD ----------------
-  Widget _buildCard({
+  // =========================
+  // HERO CARD
+  // =========================
+
+  Widget _heroCard({
+    required String userName,
+    required String userEmail,
+    required String smsBalance,
+    required bool tokenActive,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(28),
+
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xff2563EB), Color(0xff1D4ED8), Color(0xff1E40AF)],
+        ),
+
+        borderRadius: BorderRadius.circular(34),
+
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xff2563EB).withOpacity(.25),
+
+            blurRadius: 30,
+
+            offset: const Offset(0, 14),
+          ),
+        ],
+      ),
+
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+
+        children: [
+          Text(
+            _getGreeting(),
+
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          Text(
+            userName,
+
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 30,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+
+          const SizedBox(height: 6),
+
+          Text(userEmail, style: const TextStyle(color: Colors.white70)),
+
+          const SizedBox(height: 18),
+
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+
+            children: [
+              _heroBadge(
+                icon: Icons.verified_user_rounded,
+
+                text: tokenActive ? 'Session Active' : 'No Session',
+              ),
+
+              _heroBadge(
+                icon: Icons.sms_rounded,
+
+                text: 'SMS Balance: $smsBalance',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _heroBadge({required IconData icon, required String text}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.10),
+
+        borderRadius: BorderRadius.circular(16),
+
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
+      ),
+
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+
+        children: [
+          Icon(icon, color: Colors.white, size: 18),
+
+          const SizedBox(width: 8),
+
+          Text(
+            text,
+
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _miniStat({
     required String title,
     required String value,
     required IconData icon,
     required Color color,
   }) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
+
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.white,
+
+        borderRadius: BorderRadius.circular(24),
+
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 6,
-            offset: const Offset(0, 3),
+            color: Colors.black.withOpacity(.04),
+
+            blurRadius: 18,
+
+            offset: const Offset(0, 8),
           ),
         ],
       ),
+
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+
         children: [
-          Icon(icon, color: color, size: 32),
-          const SizedBox(height: 12),
-          Text(title, style: TextStyle(color: Colors.grey[700])),
-          const SizedBox(height: 6),
+          Container(
+            padding: const EdgeInsets.all(10),
+
+            decoration: BoxDecoration(
+              color: color.withOpacity(.10),
+
+              borderRadius: BorderRadius.circular(14),
+            ),
+
+            child: Icon(icon, color: color),
+          ),
+
+          const SizedBox(height: 14),
+
           Text(
             value,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
-  // ---------------- CLASS CARD ----------------
-
-  Widget _buildClassCard(TodayClassModel classItem) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      height: 150,
-      child: Card(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        elevation: 3,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    width: 220,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          classItem.subjectName ?? "-",
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          "${classItem.gradeName ?? '-'} - ${classItem.className ?? '-'}",
-                        ),
-                        const SizedBox(height: 6),
-                        Text("Hall: ${classItem.hallName ?? '-'}"),
-                        const SizedBox(height: 6),
-                        Text(
-                          "${classItem.startTime} - ${classItem.endTime}",
-                          style: const TextStyle(color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(width: 16),
-
-                  if (classItem.status == 1)
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        GestureDetector(
-                          onTap: () {
-                            Navigator.pushNamed(
-                              context,
-                              '/today-attendance',
-                              arguments: {
-                                'class_id': classItem.classId,
-                                'attendance_id': classItem.attendanceId,
-                                'class_has_category_id':
-                                    classItem.classCategory?.id,
-                                'token': widget.token,
-                              },
-                            );
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.blue,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Text(
-                              "View Attendance",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        if (classItem.isOngoing)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.green,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Text(
-                              "ONGOING",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ---------------- STUDENT REGISTERED CARD ----------------
-  Widget _buildStudentRegisteredCard(StudentMiniModel? student) {
-    if (student == null) {
-      return _buildEmptyBox("No Student Data");
-    }
-
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 3,
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 28,
-              backgroundColor: Colors.blue.withValues(alpha: 0.1),
-              backgroundImage:
-                  (student.imgUrl != null && student.imgUrl!.isNotEmpty)
-                  ? NetworkImage(student.imgUrl!)
-                  : null,
-              child: (student.imgUrl == null || student.imgUrl!.isEmpty)
-                  ? const Icon(Icons.person, color: Colors.blue)
-                  : null,
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    student.initialName,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    "ID: ${student.customId}",
-                    style: TextStyle(color: Colors.grey[600]),
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      if (student.classType != null)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            student.classType!,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.blue,
-                            ),
-                          ),
-                        ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: student.admission ? Colors.green : Colors.red,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          student.admission ? "Admitted" : "Not Admitted",
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmptyBox(String message) {
-    return Container(
-      height: 120,
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.grey.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.inbox, color: Colors.grey, size: 32),
-            const SizedBox(height: 8),
-            Text(message, style: const TextStyle(color: Colors.grey)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDrawer(BuildContext context) {
-    return Drawer(
-      child: Column(
-        children: [
-          /// Scrollable menu area
-          Expanded(
-            child: ListView(
-              padding: EdgeInsets.zero,
-              children: [
-                _buildDrawerHeader(),
-
-                _buildMenuItem(
-                  context,
-                  icon: Icons.person_add,
-                  title: 'Create Student',
-                  onTap: () => _navigateToCreateStudent(context),
-                ),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.add_home_outlined,
-                  title: 'Add Classes',
-                  onTap: () => _navigateToAddStudentClass(context),
-                ),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.person,
-                  title: 'Student',
-                  onTap: () => _navigateToStudent(context),
-                ),
-
-                _buildMenuItem(
-                  context,
-                  icon: Icons.card_membership,
-                  title: 'Student ID Numbers',
-                  onTap: () => _navigateToStudentIdNumbers(context),
-                ),
-
-                _buildMenuItem(
-                  context,
-                  icon: Icons.camera,
-                  title: 'Capture Image',
-                  onTap: () => _navigateToCaptureImage(context),
-                ),
-                const Divider(),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.menu_book,
-                  title: 'Mark Tute',
-                  onTap: () => _navigateToMarkTute(context),
-                ),
-
-                _buildMenuItem(
-                  context,
-                  icon: Icons.people_alt_rounded,
-                  title: 'Attendance',
-                  onTap: () => _navigateToAttendance(context),
-                ),
-
-                _buildMenuItem(
-                  context,
-                  icon: Icons.monetization_on,
-                  title: 'Payments',
-                  onTap: () => _navigateToPayments(context),
-                ),
-
-                const Divider(),
-
-                _buildMenuItem(
-                  context,
-                  icon: Icons.qr_code,
-                  title: 'Temporary Qr',
-                  onTap: () => _navigateToTempQrPage(context),
-                ),
-
-                _buildMenuItem(
-                  context,
-                  icon: Icons.local_activity,
-                  title: 'Activated Qr',
-                  onTap: () => _navigateToActiveQrPage(context),
-                ),
-
-                _buildMenuItem(
-                  context,
-                  icon: Icons.settings,
-                  title: 'Profile',
-                  onTap: () => _navigateToUserProfile(context),
-                ),
-
-                _buildMenuItem(
-                  context,
-                  icon: Icons.logout,
-                  title: 'Logout',
-                  isLogout: true,
-                  onTap: () => _handleLogout(context),
-                ),
-              ],
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              color: AppColors.dark,
             ),
           ),
 
-          /// Bottom Footer
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Column(
-              children: const [
-                Divider(),
-                SizedBox(height: 8),
-                Text(
-                  "Version 3.1.0",
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  "© 2026 NexOra. All rights reserved.",
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-                SizedBox(height: 8),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+          const SizedBox(height: 4),
 
-  Widget _buildDrawerHeader() {
-    return Container(
-      height: 180,
-      decoration: BoxDecoration(
-        color: AppTheme.primaryColor, // Blue
-        borderRadius: const BorderRadius.only(bottomRight: Radius.circular(16)),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircleAvatar(
-            radius: 40,
-            backgroundColor: Colors.white,
-            child: Padding(
-              padding: const EdgeInsets.all(8),
-              child: Image.asset('assets/logo/logo.png', height: 250),
-            ),
-          ),
-
-          const SizedBox(height: 12),
           Text(
-            'Dashboard',
+            title,
+
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.9),
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
+              color: Colors.grey.shade600,
+
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -654,158 +923,185 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  Widget _buildMenuItem(
-    BuildContext context, {
+  Widget _drawerTile({
     required IconData icon,
     required String title,
     required VoidCallback onTap,
-    bool isLogout = false,
+    Color color = AppColors.secondary,
   }) {
-    return ListTile(
-      leading: Icon(icon, color: isLogout ? Colors.red : Colors.blue),
-      title: Text(
-        title,
-        style: TextStyle(
-          color: isLogout ? Colors.red : Colors.black,
-          fontWeight: isLogout ? FontWeight.bold : FontWeight.normal,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+
+      child: ListTile(
+        leading: Icon(icon, color: color),
+
+        title: Text(
+          title,
+
+          style: TextStyle(color: color, fontWeight: FontWeight.w600),
+        ),
+
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+
+        onTap: onTap,
+      ),
+    );
+  }
+}
+
+class _QuickActionCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _QuickActionCard({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+
+      child: InkWell(
+        onTap: onTap,
+
+        borderRadius: BorderRadius.circular(26),
+
+        child: Ink(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [color.withOpacity(.12), color.withOpacity(.03)],
+            ),
+
+            borderRadius: BorderRadius.circular(26),
+
+            border: Border.all(color: color.withOpacity(.12)),
+          ),
+
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+
+              children: [
+                Icon(icon, color: color, size: 34),
+
+                const SizedBox(height: 14),
+
+                Text(
+                  label,
+
+                  textAlign: TextAlign.center,
+
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+
+                    color: AppColors.dark,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
-      trailing: isLogout
-          ? null
-          : const Icon(Icons.chevron_right, color: Colors.grey),
-      onTap: onTap,
-      tileColor: isLogout ? Colors.red.withValues(alpha: 0.05) : null,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
     );
   }
+}
 
-  void _navigateToCreateStudent(BuildContext context) {
-    Navigator.pop(context); // Close drawer
-    Navigator.pushNamed(
-      context,
-      '/students_image_upload',
-      arguments: widget.token,
-    );
-  }
+class _StatCard extends StatelessWidget {
+  final String title;
+  final String value;
+  final IconData icon;
+  final Color color;
 
-  void _navigateToAddStudentClass(BuildContext context) {
-    Navigator.pop(context); // Close drawer
-    Navigator.pushNamed(
-      context,
-      '/qr-scan',
-      arguments: {'scanType': ScanType.classes, 'token': widget.token},
-    );
-  }
+  const _StatCard({
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
 
-  void _navigateToStudent(BuildContext context) {
-    Navigator.pop(context); // Close drawer
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
 
-    Navigator.pushNamed(
-      context,
-      '/students',
-      arguments: widget.token, // ✅ token pass කරනවා
-    );
-  }
+      decoration: BoxDecoration(
+        color: Colors.white,
 
-  void _navigateToActiveQrPage(BuildContext context) {
-    Navigator.pop(context); // Close drawer
+        borderRadius: BorderRadius.circular(20),
 
-    Navigator.pushNamed(
-      context,
-      '/active-qr',
-      arguments: widget.token, // ✅ token pass කරනවා
-    );
-  }
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
 
-  void _navigateToStudentIdNumbers(BuildContext context) {
-    Navigator.pop(context); // Close drawer
+            blurRadius: 18,
 
-    Navigator.pushNamed(
-      context,
-      '/student-id-numbers',
-      arguments: widget.token, // ✅ token pass කරනවා
-    );
-  }
-
-  void _navigateToCaptureImage(BuildContext context) {
-    Navigator.pop(context); // Close drawer
-
-    Navigator.pushNamed(
-      context,
-      '/image_capture',
-      arguments: widget.token, // ✅ token pass කරනවා
-    );
-  }
-
-  void _navigateToMarkTute(BuildContext context) {
-    Navigator.pop(context);
-
-    Navigator.pushNamed(
-      context,
-      '/qr-scan',
-      arguments: {'scanType': ScanType.tute, 'token': widget.token},
-    );
-  }
-
-  void _navigateToAttendance(BuildContext context) {
-    Navigator.pop(context);
-
-    Navigator.pushNamed(
-      context,
-      '/qr-scan',
-      arguments: {'scanType': ScanType.attendance, 'token': widget.token},
-    );
-  }
-
-  void _navigateToPayments(BuildContext context) async {
-    Navigator.pop(context);
-
-    Navigator.pushNamed(
-      context,
-      '/qr-scan',
-      arguments: {'scanType': ScanType.payment, 'token': widget.token},
-    );
-  }
-
-  void _navigateToTempQrPage(BuildContext context) async {
-    Navigator.pop(context);
-
-    Navigator.pushNamed(context, '/temp_qr_page', arguments: widget.token);
-  }
-
-  void _navigateToUserProfile(BuildContext context) {
-    Navigator.pop(context); // Close drawer
-    Navigator.pushNamed(
-      context,
-      '/user-profile',
-      arguments: {
-        'token': widget.token,
-        'user_model': widget.userModel,
-      }, // ✅ token pass කරනවා
-    );
-  }
-
-  void _handleLogout(BuildContext context) {
-    Navigator.pop(context); // Close drawer
-
-    // Show confirmation dialog
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Logout'),
-        content: const Text('Are you sure you want to logout?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            offset: const Offset(0, 8),
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context); // Close dialog
-              context.read<AuthBloc>().add(LogoutRequested());
-              Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
-            },
-            child: const Text('Logout', style: TextStyle(color: Colors.red)),
+        ],
+
+        border: Border.all(color: Colors.grey.withOpacity(0.08)),
+      ),
+
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.12),
+
+              shape: BoxShape.circle,
+            ),
+
+            child: Icon(icon, color: color, size: 24),
+          ),
+
+          const SizedBox(height: 12),
+
+          Text(
+            value,
+
+            textAlign: TextAlign.center,
+
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+
+              color: AppColors.dark,
+
+              height: 1.0,
+            ),
+          ),
+
+          const SizedBox(height: 6),
+
+          Text(
+            title,
+
+            textAlign: TextAlign.center,
+
+            maxLines: 2,
+
+            overflow: TextOverflow.ellipsis,
+
+            style: TextStyle(
+              fontSize: 13,
+
+              fontWeight: FontWeight.w600,
+
+              color: Colors.grey.shade600,
+            ),
           ),
         ],
       ),

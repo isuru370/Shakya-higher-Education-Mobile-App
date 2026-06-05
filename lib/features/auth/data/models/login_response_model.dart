@@ -15,10 +15,12 @@ class LoginResponseModel {
 
   factory LoginResponseModel.fromJson(Map<String, dynamic> json) {
     return LoginResponseModel(
-      status: json['status'],
-      message: json['message'],
-      token: json['token'],
-      user: UserModel.fromJson(json['user']),
+      status: (json['status'] ?? '').toString(),
+      message: (json['message'] ?? '').toString(),
+      token: (json['token'] ?? '').toString(),
+      user: UserModel.fromJson(
+        (json['user'] as Map<String, dynamic>?) ?? <String, dynamic>{},
+      ),
     );
   }
 }

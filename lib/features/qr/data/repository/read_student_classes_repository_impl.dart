@@ -14,7 +14,6 @@ class ReadStudentClassesRepositoryImpl
     ReadStudentClassesRequestModel request,
   ) async {
     return await remoteDatasource.readStudentClass(
-      token: request.token,
       qrCode: request.qrCode,
     );
   }

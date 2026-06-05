@@ -8,32 +8,23 @@ abstract class AttendanceEvent extends Equatable {
 }
 
 class MarkAttendanceRequested extends AttendanceEvent {
-  final String token;
-  final int studentId;
-  final int studentClassId;
-  final int attendanceId;
-  final int classCategoryHasStudentClassId;
-  final bool tute;
-  final String guardianMobile;
+  final AttendanceRequestModel request;
 
   const MarkAttendanceRequested({
-    required this.token,
-    required this.studentId,
-    required this.studentClassId,
-    required this.attendanceId,
-    required this.classCategoryHasStudentClassId,
-    required this.tute,
-    required this.guardianMobile,
+    required this.request,
   });
 
   @override
-  List<Object?> get props => [
-    token,
-    studentId,
-    studentClassId,
-    attendanceId,
-    classCategoryHasStudentClassId,
-    tute,
-    guardianMobile,
-  ];
+  List<Object?> get props => [request];
+}
+
+class AttendanceHistoryRequested extends AttendanceEvent {
+  final AttendanceHistoryRequestModel request;
+
+  const AttendanceHistoryRequested({
+    required this.request,
+  });
+
+  @override
+  List<Object?> get props => [request];
 }

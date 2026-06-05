@@ -9,10 +9,9 @@ class StudentGradeRepositoryImpl implements StudentGradeRepository {
 
   @override
   Future<StudentGradeResponseModel> getStudentGrade(
-    String token,
   ) {
     return remote.getStudentGrades(
-      token: token,
+
     );
   }
 }

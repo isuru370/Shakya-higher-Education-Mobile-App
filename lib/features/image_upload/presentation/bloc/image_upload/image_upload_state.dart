@@ -4,23 +4,12 @@ sealed class ImageUploadState extends Equatable {
   const ImageUploadState();
 
   @override
-  List<Object> get props => [];
+  List<Object?> get props => [];
 }
 
 final class ImageUploadInitial extends ImageUploadState {}
 
 final class ImageUploadLoading extends ImageUploadState {}
-
-
-final class CreateQuickPhotoSuccess extends ImageUploadState {
-  final QuickPhotoResponseModel response;
-
-  const CreateQuickPhotoSuccess(this.response);
-
-  @override
-  List<Object> get props => [response];
-}
-
 
 final class ImageUploadSuccess extends ImageUploadState {
   final ImageUploadResponseModel response;
@@ -28,16 +17,7 @@ final class ImageUploadSuccess extends ImageUploadState {
   const ImageUploadSuccess(this.response);
 
   @override
-  List<Object> get props => [response];
-}
-
-final class FetchQuickPhotoLoaded extends ImageUploadState {
-  final FetchQuickPhotoResponseModel result;
-
-  const FetchQuickPhotoLoaded(this.result);
-
-  @override
-  List<Object> get props => [result];
+  List<Object?> get props => [response];
 }
 
 final class ImageUploadError extends ImageUploadState {
@@ -46,5 +26,5 @@ final class ImageUploadError extends ImageUploadState {
   const ImageUploadError(this.message);
 
   @override
-  List<Object> get props => [message];
+  List<Object?> get props => [message];
 }

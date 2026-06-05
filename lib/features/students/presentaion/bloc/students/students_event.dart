@@ -28,11 +28,10 @@ class FetchStudentCustomIds extends StudentsEvent {
 }
 
 final class CreateStudentEvent extends StudentsEvent {
-  final String token;
   final StudentModel student;
 
-  const CreateStudentEvent({required this.token, required this.student});
+  const CreateStudentEvent({required this.student});
 
   @override
-  List<Object> get props => [token, student];
+  List<Object> get props => [student];
 }

@@ -7,9 +7,8 @@ class ReadStudentUsecase {
   ReadStudentUsecase(this.repository);
 
   Future<ReadStudentResponseModel> call({
-    required String token,
-    required String customId,
+    required String qrCode,
   }) {
-    return repository.readStudent(token: token, customId: customId);
+    return repository.readStudent(qrCode: qrCode);
   }
 }

@@ -4,27 +4,36 @@ sealed class ReadPaymentState extends Equatable {
   const ReadPaymentState();
 
   @override
-  List<Object> get props => [];
+  List<Object?> get props => [];
 }
 
-final class ReadPaymentInitial extends ReadPaymentState {}
+class ReadPaymentInitial extends ReadPaymentState {
+  const ReadPaymentInitial();
+}
 
-final class ReadPaymentLoading extends ReadPaymentState {}
+class ReadPaymentLoading extends ReadPaymentState {
+  final ReadPaymentResponseModel? previousResponse;
 
-final class ReadPaymentLoaded extends ReadPaymentState {
+  const ReadPaymentLoading({this.previousResponse});
+
+  @override
+  List<Object?> get props => [previousResponse];
+}
+
+class ReadPaymentLoaded extends ReadPaymentState {
   final ReadPaymentResponseModel response;
 
   const ReadPaymentLoaded(this.response);
 
   @override
-  List<Object> get props => [response];
+  List<Object?> get props => [response];
 }
 
-final class ReadPaymentError extends ReadPaymentState {
+class ReadPaymentError extends ReadPaymentState {
   final String message;
 
-  const ReadPaymentError(this.message);
+  const ReadPaymentError({required this.message});
 
   @override
-  List<Object> get props => [message];
+  List<Object?> get props => [message];
 }

@@ -13,16 +13,24 @@ class NexoraMobileApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         MonthYearPickerLocalizations.delegate,
       ],
+
       supportedLocales: const [Locale('en')],
+
       title: 'Education Mobile App',
+
+      // ✅ GLOBAL THEME
       theme: AppTheme.lightTheme,
+
       initialRoute: '/',
+
       onGenerateRoute: AppRoutes.onGenerateRoute,
-      navigatorObservers: [routeObserver], // ⭐ THIS LINE
+
+      navigatorObservers: [routeObserver],
     );
   }
 }

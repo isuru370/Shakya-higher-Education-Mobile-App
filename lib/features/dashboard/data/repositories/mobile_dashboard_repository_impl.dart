@@ -12,7 +12,7 @@ class MobileDashboardRepositoryImpl
   MobileDashboardRepositoryImpl(this.remoteDataSource);
 
   @override
-  Future<MobileDashboardResponseModel> getDashboard(String token) async {
-    return await remoteDataSource.getDashboard(token: token);
+  Future<MobileDashboardResponseModel> getDashboard() async {
+    return await remoteDataSource.getDashboard();
   }
 }

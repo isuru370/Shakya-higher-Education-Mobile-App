@@ -30,7 +30,10 @@ class ImagePickerService {
             lockAspectRatio: true,
             hideBottomControls: false,
           ),
-          IOSUiSettings(title: 'Crop ID Photo', aspectRatioLockEnabled: true),
+          IOSUiSettings(
+            title: 'Crop ID Photo',
+            aspectRatioLockEnabled: true,
+          ),
         ],
       );
 

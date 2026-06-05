@@ -1,11 +1,19 @@
 class ReadAttendanceRequestModel {
-  final String customId;
+  final String qrCode;
+  final int studentClassId;
+  final int classCategoryFeeId;
 
-  ReadAttendanceRequestModel({required this.customId});
+  ReadAttendanceRequestModel({
+    required this.qrCode,
+    required this.studentClassId,
+    required this.classCategoryFeeId,
+  });
 
-  Map<String, dynamic> toQuery() {
+  Map<String, dynamic> toJson() {
     return {
-      'custom_id': customId,
+      'qr_code': qrCode,
+      'student_class_id': studentClassId,
+      'class_category_fee_id': classCategoryFeeId,
     };
   }
 }

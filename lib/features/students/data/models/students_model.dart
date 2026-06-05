@@ -4,149 +4,182 @@ import '../../../../core/constants/api_constants.dart';
 import 'grade_model.dart';
 
 class StudentModel {
-  final int id;
+  final int? id;
+
   final String? temporaryQrCode;
-  final String? temporaryQrCodeExpireDate;
-  final int? quickImageId;
+  final DateTime? temporaryQrCodeExpireDate;
+
   final String? customId;
-  final String fullName;
+
+  final String? fullName;
   final String initialName;
-  final String mobile;
+
+  final String? mobile;
+  final String? whatsappMobile;
   final String? email;
-  final String whatsappMobile;
+
   final String? nic;
-  final String bday;
+  final DateTime? bday;
+
   final String gender;
-  final String address1;
+
+  final String? address1;
   final String? address2;
   final String? address3;
 
-  final String guardianFname;
-  final String guardianLname;
-  final String guardianMobile;
+  final String? guardianFname;
+  final String? guardianLname;
   final String? guardianNic;
+  final String guardianMobile;
 
-  final bool isActive;
-  final String? imageUrl;
   final int gradeId;
-  final String classType;
-  final bool admission;
+  final String? classType;
+
+  final bool? admission;
+
   final String? studentSchool;
+  final String? imgUrl;
+  final DateTime? lastImageUpdateAt;
 
-  final String? createdAt;
-  final String? updatedAt;
-
-  final GradeModel? grade;
-  final PortalLoginModel? portalLogin;
+  final bool? isActive;
   final bool? permanentQrActive;
   final bool? studentDisable;
 
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+
+  final String? quickImageId;
+
+  final GradeModel? grade;
+  final PortalLoginModel? portalLogin;
+
   StudentModel({
-    required this.id,
+    this.id,
     this.temporaryQrCode,
     this.temporaryQrCodeExpireDate,
-    this.quickImageId,
     this.customId,
-    required this.fullName,
+    this.fullName,
     required this.initialName,
-    required this.mobile,
+    this.mobile,
+    this.whatsappMobile,
     this.email,
-    required this.whatsappMobile,
     this.nic,
-    required this.bday,
+    this.bday,
     required this.gender,
-    required this.address1,
+    this.address1,
     this.address2,
     this.address3,
-    required this.guardianFname,
-    required this.guardianLname,
-    required this.guardianMobile,
+    this.guardianFname,
+    this.guardianLname,
     this.guardianNic,
-    required this.isActive,
-    this.imageUrl,
+    required this.guardianMobile,
     required this.gradeId,
-    required this.classType,
-    required this.admission,
+    this.classType,
+    this.admission,
     this.studentSchool,
-    this.createdAt,
-    this.updatedAt,
-    this.grade,
-    this.portalLogin,
+    this.imgUrl,
+    this.lastImageUpdateAt,
+    this.isActive,
     this.permanentQrActive,
     this.studentDisable,
+    this.createdAt,
+    this.updatedAt,
+    this.quickImageId,
+    this.grade,
+    this.portalLogin,
   });
 
   factory StudentModel.fromJson(Map<String, dynamic> json) {
+    final rawPath = json['img_url']?.toString();
+
     return StudentModel(
-      id: json['id'],
-      temporaryQrCode: json['temporary_qr_code'] ?? '',
-      temporaryQrCodeExpireDate: json['temporary_qr_code_expire_date'],
-      customId: json['custom_id'],
-      fullName: json['full_name'],
-      initialName: json['initial_name'],
-      mobile: json['mobile'],
-      email: json['email'],
-      whatsappMobile: json['whatsapp_mobile'],
-      nic: json['nic'],
-      bday: json['bday'],
-      gender: json['gender'],
-      address1: json['address1'],
-      address2: json['address2'],
-      address3: json['address3'],
-      guardianFname: json['guardian_fname'],
-      guardianLname: json['guardian_lname'],
-      guardianMobile: json['guardian_mobile'],
-      guardianNic: json['guardian_nic'],
-      isActive: json['is_active'],
-      imageUrl: json['img_url']?.toString().replaceFirst(
-        'http://127.0.0.1:8000',
-        ApiConstants.baseUrl,
+      id: _int(json['id']),
+      temporaryQrCode: _string(json['temporary_qr_code']),
+      temporaryQrCodeExpireDate: _parseDate(
+        json['temporary_qr_code_expire_date'],
       ),
-      gradeId: json['grade_id'],
-      classType: json['class_type'],
-      admission: json['admission'],
-      studentSchool: json['student_school'],
-      createdAt: json['created_at'],
-      updatedAt: json['updated_at'],
+      customId: _string(json['custom_id']),
+      fullName: _string(json['full_name']),
+      initialName: _string(json['initial_name']) ?? '',
+      mobile: _string(json['mobile']),
+      whatsappMobile: _string(json['whatsapp_mobile']),
+      email: _string(json['email']),
+      nic: _string(json['nic']),
+      bday: _parseDate(json['bday']),
+      gender: _string(json['gender']) ?? 'other',
+      address1: _string(json['address1']),
+      address2: _string(json['address2']),
+      address3: _string(json['address3']),
+      guardianFname: _string(json['guardian_fname']),
+      guardianLname: _string(json['guardian_lname']),
+      guardianNic: _string(json['guardian_nic']),
+      guardianMobile: _string(json['guardian_mobile']) ?? '',
+      gradeId: _int(json['grade_id']) ?? 0,
+      classType: _string(json['class_type']),
+      admission: _bool(json['admission']),
+      studentSchool: _string(json['student_school']),
+      imgUrl: rawPath == null || rawPath.isEmpty
+          ? null
+          : rawPath.startsWith('http')
+          ? rawPath
+          : '${ApiConstants.baseUrl.replaceAll(RegExp(r'/$'), '')}/storage/$rawPath',
+      lastImageUpdateAt: _parseDate(json['last_image_update_at']),
+      isActive: _bool(json['is_active']),
+      permanentQrActive: _bool(json['permanent_qr_active']),
+      studentDisable: _bool(json['student_disable']),
+      createdAt: _parseDate(json['created_at']),
+      updatedAt: _parseDate(json['updated_at']),
 
-      // ✅ FIX HERE
-      grade: json['grade'] != null ? GradeModel.fromJson(json['grade']) : null,
-
-      portalLogin: json['portal_login'] != null
-          ? PortalLoginModel.fromJson(json['portal_login'])
+      grade: json['grade'] != null
+          ? GradeModel.fromJson(json['grade'] as Map<String, dynamic>)
           : null,
 
-      permanentQrActive: json['permanent_qr_active'] ?? false,
-      studentDisable: json['student_disable'] ?? false,
+      portalLogin: json['portal_login'] != null
+          ? PortalLoginModel.fromJson(
+              json['portal_login'] as Map<String, dynamic>,
+            )
+          : null,
     );
+  }
+
+  static String? _string(dynamic value) {
+    if (value == null) return null;
+    final text = value.toString().trim();
+    return text.isEmpty ? null : text;
+  }
+
+  static int? _int(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    return int.tryParse(value.toString());
+  }
+
+  static bool? _bool(dynamic value) {
+    if (value == null) return null;
+    if (value is bool) return value;
+
+    final text = value.toString().toLowerCase().trim();
+    if (text == '1' || text == 'true') return true;
+    if (text == '0' || text == 'false') return false;
+
+    return null;
+  }
+
+  static DateTime? _parseDate(dynamic value) {
+    if (value == null) return null;
+    final text = value.toString().trim();
+    if (text.isEmpty) return null;
+    return DateTime.tryParse(text);
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
       'temporary_qr_code': temporaryQrCode,
       'quick_image_id': quickImageId,
-      'full_name': fullName,
       'initial_name': initialName,
-      'mobile': mobile,
-      'email': email,
-      'whatsapp_mobile': whatsappMobile,
-      'nic': nic,
-      'bday': bday,
-      'gender': gender,
-      'address1': address1,
-      'address2': address2,
-      'address3': address3,
-      'guardian_fname': guardianFname,
-      'guardian_lname': guardianLname,
       'guardian_mobile': guardianMobile,
-      'guardian_nic': guardianNic,
-      'is_active': isActive,
-      'img_url': imageUrl,
       'grade_id': gradeId,
-      'class_type': classType,
-      'admission': admission,
-      'student_school': studentSchool,
+      'gender': gender,
     };
   }
 }

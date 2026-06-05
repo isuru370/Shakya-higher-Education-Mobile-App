@@ -1,159 +1,281 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intl/intl.dart';
 
-import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../data/models/students_model.dart';
 import '../bloc/student_classes/student_classes_bloc.dart';
 import 'student_view_classes.dart';
 
 class SingleStudentViewPage extends StatelessWidget {
-  final String token;
   final StudentModel student;
 
-  const SingleStudentViewPage({
-    super.key,
-    required this.student,
-    required this.token,
-  });
+  const SingleStudentViewPage({super.key, required this.student});
 
   @override
   Widget build(BuildContext context) {
     return BlocListener<StudentClassesBloc, StudentClassesState>(
       listener: (context, state) {
-        if (state is StudentClassesLoading) {
-          // Optionally show a loading indicator
-          debugPrint('Loading student classes...');
-        } else if (state is StudentClassesLoaded) {
+        if (state is StudentClassesLoaded) {
           final classes = state.response.data;
 
           if (classes.isEmpty) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('No classes found for this student.'),
+                content: Text('No classes found for this student'),
               ),
             );
           } else {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => StudentViewClasses(token: token),
+                builder: (_) => StudentViewClasses(
+                  studentId: student.id!,
+                  studentName: student.initialName,
+                  customId: student.permanentQrActive == true
+                      ? student.customId ?? "N/A"
+                      : student.temporaryQrCode ?? "N/A",
+                ),
               ),
             );
           }
         } else if (state is StudentClassesError) {
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(SnackBar(content: Text('Error: ${state.message}')));
+          ).showSnackBar(SnackBar(content: Text(state.message)));
         }
       },
+
       child: Scaffold(
+        backgroundColor: AppColors.background,
+
         appBar: AppBar(
-          title: Text(student.initialName),
-          backgroundColor: AppTheme.primaryColor,
+          elevation: 0,
           centerTitle: true,
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+
+          title: const Text(
+            'Student Profile',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
         ),
+
         floatingActionButton: FloatingActionButton.extended(
-          backgroundColor: AppTheme.primaryColor,
+          elevation: 0,
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+
           onPressed: () {
-            context.read<StudentClassesBloc>().add(
-              FetchStudentClasses(studentId: student.id, token: token),
-            );
+            if (student.id != null) {
+              context.read<StudentClassesBloc>().add(
+                FetchStudentClasses(studentId: student.id!),
+              );
+            }
           },
-          icon: const Icon(Icons.class_),
-          label: const Text('View Classes'),
+
+          icon: const Icon(Icons.class_rounded),
+
+          label: const Text(
+            'View Classes',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
         ),
+
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
+
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ---------------- PROFILE AVATAR ----------------
-              Center(
-                child: CircleAvatar(
-                  radius: 60,
-                  backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
-                  backgroundImage: student.imageUrl != null
-                      ? NetworkImage(student.imageUrl!)
-                      : null,
-                  child: student.imageUrl == null
-                      ? const Icon(
-                          Icons.person,
-                          size: 60,
-                          color: AppTheme.primaryColor,
-                        )
-                      : null,
+              // HERO CARD
+              Container(
+                width: double.infinity,
+
+                padding: const EdgeInsets.all(24),
+
+                decoration: BoxDecoration(
+                  gradient: AppColors.primaryGradient,
+                  borderRadius: BorderRadius.circular(32),
+                  boxShadow: AppColors.mediumShadow,
+                ),
+
+                child: Column(
+                  children: [
+                    // IMAGE
+                    CircleAvatar(
+                      radius: 60,
+                      backgroundColor: Colors.white,
+
+                      backgroundImage:
+                          (student.imgUrl != null && student.imgUrl!.isNotEmpty)
+                          ? NetworkImage(student.imgUrl!)
+                          : null,
+
+                      child: (student.imgUrl == null || student.imgUrl!.isEmpty)
+                          ? const Icon(
+                              Icons.person_rounded,
+                              size: 60,
+                              color: AppColors.primary,
+                            )
+                          : null,
+                    ),
+
+                    const SizedBox(height: 18),
+
+                    // NAME
+                    Text(
+                      student.initialName,
+                      textAlign: TextAlign.center,
+
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+
+                    const SizedBox(height: 6),
+
+                    Text(
+                      student.fullName ?? '',
+                      textAlign: TextAlign.center,
+
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+
+                    const SizedBox(height: 18),
+
+                    // CHIPS
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      alignment: WrapAlignment.center,
+
+                      children: [
+                        _buildChip(
+                          icon: Icons.school_rounded,
+                          text: student.grade?.gradeName ?? 'N/A',
+                        ),
+
+                        _buildChip(
+                          icon: Icons.category_rounded,
+                          text: student.classType ?? 'N/A',
+                        ),
+
+                        _buildChip(
+                          icon: Icons.qr_code_rounded,
+                          text: student.customId ?? 'N/A',
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 16),
 
-              Center(
-                child: Text(
-                  student.initialName,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
+              const SizedBox(height: 18),
+
+              // STATUS CARDS
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildStatusCard(
+                      title: 'Status',
+                      value: student.isActive == true ? 'Active' : 'Inactive',
+
+                      icon: student.isActive == true
+                          ? Icons.verified_rounded
+                          : Icons.cancel_rounded,
+
+                      color: student.isActive == true
+                          ? AppColors.success
+                          : AppColors.danger,
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Center(
-                child: Text(
-                  '${student.grade?.gradeName ?? 'N/A'} • ${student.classType} • ${student.temporaryQrCode}',
-                  style: const TextStyle(fontSize: 16, color: Colors.grey),
-                ),
-              ),
-              const SizedBox(height: 24),
 
-              // ---------------- INFO SECTIONS ----------------
-              _buildSection('Contact Information', [
-                _infoRow('Mobile', student.mobile),
-                _infoRow('WhatsApp', student.whatsappMobile),
-                _infoRow('Email', student.email ?? 'N/A'),
-              ]),
-              _buildSection('Personal Details', [
-                _infoRow('Full Name', student.fullName),
-                _infoRow(
-                  'Birthday',
-                  DateFormat('yyyy MM dd').format(DateTime.parse(student.bday)),
-                ),
-                _infoRow('Gender', student.gender),
-                _infoRow('NIC', student.nic ?? 'N/A'),
-              ]),
-              _buildSection('Address', [
-                _infoRow('Address 1', student.address1),
-                _infoRow('Address 2', student.address2 ?? 'N/A'),
-                _infoRow('Address 3', student.address3 ?? 'N/A'),
-              ]),
-              _buildSection('Guardian Information', [
-                _infoRow(
-                  'Name',
-                  '${student.guardianFname} ${student.guardianLname}',
-                ),
-                _infoRow('Mobile', student.guardianMobile),
-                _infoRow('NIC', student.guardianNic ?? 'N/A'),
-              ]),
-              _buildSection('Other Information', [
-                _infoRow('Admission', student.admission ? 'Yes' : 'No'),
-                _infoRow('Active', student.isActive ? 'Yes' : 'No'),
-                _infoRow(
-                  'Created At',
-                  student.createdAt != null
-                      ? DateFormat(
-                          'yyyy MM dd HH:mm',
-                        ).format(DateTime.parse(student.createdAt!).toLocal())
-                      : 'N/A',
-                ),
+                  const SizedBox(width: 12),
 
-                _infoRow(
-                  'Updated At',
-                  student.updatedAt != null
-                      ? DateFormat(
-                          'yyyy MM dd HH:mm',
-                        ).format(DateTime.parse(student.updatedAt!).toLocal())
-                      : 'N/A',
-                ),
-              ]),
+                  Expanded(
+                    child: _buildStatusCard(
+                      title: 'Admission',
+                      value: student.admission == true
+                          ? 'Completed'
+                          : 'Pending',
+
+                      icon: student.admission == true
+                          ? Icons.payments_rounded
+                          : Icons.pending_rounded,
+
+                      color: student.admission == true
+                          ? AppColors.primary
+                          : AppColors.warning,
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 18),
+
+              _buildSection(
+                title: 'Contact Information',
+                icon: Icons.call_rounded,
+
+                children: [
+                  _infoRow('Mobile', student.mobile ?? 'N/A'),
+
+                  _infoRow('WhatsApp', student.whatsappMobile ?? 'N/A'),
+
+                  _infoRow('Email', student.email ?? 'N/A'),
+                ],
+              ),
+
+              _buildSection(
+                title: 'Personal Details',
+                icon: Icons.badge_rounded,
+
+                children: [
+                  _infoRow('Full Name', student.fullName ?? 'N/A'),
+
+                  _infoRow('Gender', student.gender),
+
+                  _infoRow('NIC', student.nic ?? 'N/A'),
+
+                  _infoRow('School', student.studentSchool ?? 'N/A'),
+                ],
+              ),
+
+              _buildSection(
+                title: 'Address',
+                icon: Icons.location_on_rounded,
+
+                children: [
+                  _infoRow('Address 1', student.address1 ?? 'N/A'),
+
+                  _infoRow('Address 2', student.address2 ?? 'N/A'),
+
+                  _infoRow('Address 3', student.address3 ?? 'N/A'),
+                ],
+              ),
+
+              _buildSection(
+                title: 'Guardian Information',
+                icon: Icons.family_restroom_rounded,
+
+                children: [
+                  _infoRow(
+                    'Guardian',
+                    '${student.guardianFname ?? ''} ${student.guardianLname ?? ''}',
+                  ),
+
+                  _infoRow('Mobile', student.guardianMobile),
+
+                  _infoRow('NIC', student.guardianNic ?? 'N/A'),
+                ],
+              ),
+
+              const SizedBox(height: 100),
             ],
           ),
         ),
@@ -161,48 +283,176 @@ class SingleStudentViewPage extends StatelessWidget {
     );
   }
 
-  // ---------------- SECTION BUILDER ----------------
-  Widget _buildSection(String title, List<Widget> children) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Card(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        elevation: 2,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const Divider(),
-              ...children,
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  Widget _buildChip({required IconData icon, required String text}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
 
-  // ---------------- INFO ROW ----------------
-  Widget _infoRow(String title, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(.15),
+
+        borderRadius: BorderRadius.circular(100),
+
+        border: Border.all(color: Colors.white.withOpacity(.2)),
+      ),
+
       child: Row(
+        mainAxisSize: MainAxisSize.min,
+
         children: [
-          SizedBox(
-            width: 120,
-            child: Text(
-              '$title:',
-              style: const TextStyle(fontWeight: FontWeight.w600),
+          Icon(icon, color: Colors.white, size: 16),
+
+          const SizedBox(width: 6),
+
+          Text(
+            text,
+
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
             ),
           ),
-          Expanded(child: Text(value)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusCard({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: AppColors.softShadow,
+      ),
+
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+
+            decoration: BoxDecoration(
+              color: color.withOpacity(.1),
+              borderRadius: BorderRadius.circular(14),
+            ),
+
+            child: Icon(icon, color: color),
+          ),
+
+          const SizedBox(height: 14),
+
+          Text(
+            title,
+
+            style: TextStyle(
+              color: Colors.grey.shade600,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+
+          const SizedBox(height: 4),
+
+          Text(
+            value,
+
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSection({
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+
+      padding: const EdgeInsets.all(18),
+
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: AppColors.softShadow,
+      ),
+
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(.08),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+
+                child: Icon(icon, color: AppColors.primary),
+              ),
+
+              const SizedBox(width: 12),
+
+              Text(
+                title,
+
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  Widget _infoRow(String title, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+
+        children: [
+          SizedBox(
+            width: 110,
+
+            child: Text(
+              title,
+
+              style: TextStyle(
+                color: Colors.grey.shade700,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+
+          const SizedBox(width: 10),
+
+          Expanded(
+            child: Text(
+              value,
+
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+          ),
         ],
       ),
     );

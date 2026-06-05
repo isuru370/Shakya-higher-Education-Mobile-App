@@ -22,7 +22,7 @@ class StudentGradeBloc extends Bloc<StudentGradeEvent, StudentGradeState> {
     emit(StudentGradeLoading());
 
     try {
-      final response = await studentGradeUsecase.execute(event.token);
+      final response = await studentGradeUsecase.execute();
 
       emit(StudentGradeLoaded(response.studentGradeList));
     } catch (e) {

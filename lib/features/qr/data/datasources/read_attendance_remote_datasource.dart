@@ -3,24 +3,49 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../../../core/constants/api_constants.dart';
+import '../../../../core/storage/session_storage.dart';
+
+import '../model/read_attendance/read_attendance_request_model.dart';
 import '../model/read_attendance/read_attendance_response_model.dart';
 
 class ReadAttendanceRemoteDatasource {
-  Future<ReadAttendanceResponseModel> readAttendance({
-    required String token,
-    required String customId,
+
+  Future<ReadAttendanceResponseModel>
+  readAttendance({
+    required ReadAttendanceRequestModel requestModel,
   }) async {
-    final response = await http.get(
+
+    final token =
+        await SessionStorage.getToken();
+
+    final response = await http.post(
       Uri.parse(
-        '${ApiConstants.apiUrl}/attendances/read-attendance?qr_code=$customId',
+        '${ApiConstants.apiUrl}/attendance/read',
       ),
-      headers: ApiConstants.headers(token: token),
+
+      headers: ApiConstants.headers(
+        token: token,
+      ),
+
+      body: jsonEncode(
+        requestModel.toJson(),
+      ),
     );
 
+    final jsonBody =
+        jsonDecode(response.body);
+
     if (response.statusCode == 200) {
-      return ReadAttendanceResponseModel.fromJson(jsonDecode(response.body));
+
+      return ReadAttendanceResponseModel
+          .fromJson(jsonBody);
+
     } else {
-      throw Exception('Failed to read attendance');
+
+      throw Exception(
+        jsonBody['message'] ??
+            'Failed to read attendance',
+      );
     }
   }
 }

@@ -1,22 +1,30 @@
-import 'read_student_classes_data_model.dart';
+import '../../../../students/data/models/student_classes_model/student_class_model.dart';
+import 'student_mini_model.dart';
 
 class ReadStudentClassesResponseModel {
-  final String status;
-  final String message;
-  final ReadStudentClassesDataModel data;
+  final bool success;
+  final String? message;
+  final StudentMiniModel? student;
+  final List<StudentClassModel> data;
 
   ReadStudentClassesResponseModel({
-    required this.status,
-    required this.message,
+    required this.success,
+    this.message,
+    this.student,
     required this.data,
   });
 
-  factory ReadStudentClassesResponseModel.fromJson(
-      Map<String, dynamic> json) {
+  factory ReadStudentClassesResponseModel.fromJson(Map<String, dynamic> json) {
     return ReadStudentClassesResponseModel(
-      status: json['status'],
-      message: json['message'],
-      data: ReadStudentClassesDataModel.fromJson(json['data']),
+      success: json['success'] == true,
+      message: json['message']?.toString(),
+      student: json['student'] is Map<String, dynamic>
+          ? StudentMiniModel.fromJson(json['student'])
+          : null,
+      data: (json['data'] as List<dynamic>? ?? [])
+          .whereType<Map<String, dynamic>>()
+          .map(StudentClassModel.fromJson)
+          .toList(),
     );
   }
 }

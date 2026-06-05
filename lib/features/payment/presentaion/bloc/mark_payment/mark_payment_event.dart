@@ -8,27 +8,34 @@ abstract class MarkPaymentEvent extends Equatable {
 }
 
 class MarkPaymentRequested extends MarkPaymentEvent {
-  final String token;
   final MarkPaymentRequestModel requestModel;
 
   const MarkPaymentRequested({
-    required this.token,
     required this.requestModel,
   });
 
   @override
-  List<Object> get props => [token, requestModel];
+  List<Object> get props => [requestModel];
 }
 
-class MarkBulkPaymentRequested extends MarkPaymentEvent {
-  final String token;
-  final BulkMarkPaymentRequestModel requestModel;
+class TodayPaymentsRequested extends MarkPaymentEvent {
+  final TodayPaymentsRequestModel requestModel;
 
-  const MarkBulkPaymentRequested({
-    required this.token,
+  const TodayPaymentsRequested({
     required this.requestModel,
   });
 
   @override
-  List<Object> get props => [token, requestModel];
+  List<Object> get props => [requestModel];
+}
+
+class PaymentHistoryRequested extends MarkPaymentEvent {
+  final PaymentHistoryRequestModel requestModel;
+
+  const PaymentHistoryRequested({
+    required this.requestModel,
+  });
+
+  @override
+  List<Object> get props => [requestModel];
 }

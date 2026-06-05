@@ -12,16 +12,14 @@ final class ReadAttendanceInitial extends ReadAttendanceState {}
 final class ReadAttendanceLoading extends ReadAttendanceState {}
 
 final class ReadAttendanceLoaded extends ReadAttendanceState {
-  final List<ReadAttendanceModel> attendanceList;
-  final int studentId;
+  final ReadAttendanceDataModel data;
 
   const ReadAttendanceLoaded({
-    required this.attendanceList,
-    required this.studentId,
+    required this.data,
   });
 
   @override
-  List<Object?> get props => [attendanceList, studentId];
+  List<Object?> get props => [data];
 }
 
 final class ReadAttendanceError extends ReadAttendanceState {

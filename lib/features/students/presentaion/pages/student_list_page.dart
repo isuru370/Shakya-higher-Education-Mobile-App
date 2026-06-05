@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../data/models/students_model.dart';
 import '../bloc/students/students_bloc.dart';
 import 'single_student_view_page.dart';
 
 class StudentListPage extends StatefulWidget {
-  final String token;
-
-  const StudentListPage({super.key, required this.token});
+  const StudentListPage({super.key});
 
   @override
   State<StudentListPage> createState() => _StudentListPageState();
@@ -17,6 +15,7 @@ class StudentListPage extends StatefulWidget {
 
 class _StudentListPageState extends State<StudentListPage> {
   final TextEditingController _searchController = TextEditingController();
+
   String? selectedGrade;
 
   List<StudentModel> filteredStudents = [];
@@ -24,8 +23,8 @@ class _StudentListPageState extends State<StudentListPage> {
   @override
   void initState() {
     super.initState();
-    final studentsBloc = context.read<StudentsBloc>();
-    studentsBloc.add(FetchStudents(widget.token));
+
+    context.read<StudentsBloc>().add(FetchStudents(""));
   }
 
   void _filterStudents(List<StudentModel> students) {
@@ -33,11 +32,11 @@ class _StudentListPageState extends State<StudentListPage> {
 
     setState(() {
       filteredStudents = students.where((student) {
-        final matchesName = (student.initialName)
-            .toLowerCase()
-            .contains(query);
+        final matchesName = student.initialName.toLowerCase().contains(query);
+
         final matchesGrade =
             selectedGrade == null || student.grade?.gradeName == selectedGrade;
+
         return matchesName && matchesGrade;
       }).toList();
     });
@@ -46,11 +45,19 @@ class _StudentListPageState extends State<StudentListPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
+
       appBar: AppBar(
-        title: const Text('Students'),
-        backgroundColor: AppTheme.primaryColor,
+        elevation: 0,
         centerTitle: true,
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        title: const Text(
+          'Students',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
       ),
+
       body: BlocBuilder<StudentsBloc, StudentsState>(
         builder: (context, state) {
           if (state is StudentsLoading) {
@@ -60,69 +67,123 @@ class _StudentListPageState extends State<StudentListPage> {
           if (state is StudentsLoaded) {
             final students = state.students;
 
-            // Initialize filteredStudents if empty
-            if (filteredStudents.isEmpty) filteredStudents = students;
+            if (filteredStudents.isEmpty) {
+              filteredStudents = students;
+            }
 
             return Column(
               children: [
-                // ---------------- SEARCH BAR ----------------
-                Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: (_) => _filterStudents(students),
-                    decoration: InputDecoration(
-                      hintText: 'Search student...',
-                      prefixIcon: const Icon(Icons.search),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      fillColor: Colors.grey.shade200,
-                      filled: true,
+                // TOP SECTION
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: const BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(28),
+                      bottomRight: Radius.circular(28),
                     ),
                   ),
-                ),
 
-                // ---------------- GRADE FILTER DROPDOWN ----------------
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: DropdownButtonFormField<String>(
-                    initialValue: selectedGrade,
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: Colors.grey.shade200,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                    hint: const Text('Filter by grade'),
-                    items: [
-                      const DropdownMenuItem(
-                        value: null,
-                        child: Text('All Grades'),
-                      ),
-                      ...students
-                          .map((s) => s.grade?.gradeName)
-                          .toSet()
-                          .map(
-                            (grade) => DropdownMenuItem(
-                              value: grade,
-                              child: Text(grade ?? 'Unknown Grade'),
+                  child: Column(
+                    children: [
+                      // SEARCH
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(18),
+                          boxShadow: AppColors.softShadow,
+                        ),
+
+                        child: TextField(
+                          controller: _searchController,
+                          onChanged: (_) => _filterStudents(students),
+
+                          decoration: InputDecoration(
+                            hintText: 'Search students...',
+                            prefixIcon: const Icon(Icons.search),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 16,
                             ),
                           ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 14),
+
+                      // FILTER
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(18),
+                          boxShadow: AppColors.softShadow,
+                        ),
+
+                        child: DropdownButtonFormField<String>(
+                          value: selectedGrade,
+
+                          decoration: const InputDecoration(
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 6,
+                            ),
+                          ),
+
+                          hint: const Text('Filter by grade'),
+
+                          items: [
+                            const DropdownMenuItem<String>(
+                              value: null,
+                              child: Text('All Grades'),
+                            ),
+
+                            ...students
+                                .map((s) => s.grade?.gradeName)
+                                .toSet()
+                                .map(
+                                  (grade) => DropdownMenuItem<String>(
+                                    value: grade,
+                                    child: Text(grade ?? 'Unknown Grade'),
+                                  ),
+                                ),
+                          ],
+
+                          onChanged: (value) {
+                            setState(() {
+                              selectedGrade = value;
+                            });
+
+                            _filterStudents(students);
+                          },
+                        ),
+                      ),
                     ],
-                    onChanged: (value) {
-                      setState(() => selectedGrade = value);
-                      _filterStudents(students);
-                    },
                   ),
                 ),
 
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
 
-                // ---------------- STUDENT LIST ----------------
+                // STUDENT COUNT
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+
+                  child: Row(
+                    children: [
+                      Text(
+                        "${filteredStudents.length} Students",
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 10),
+
+                // LIST
                 Expanded(
                   child: filteredStudents.isEmpty
                       ? const Center(
@@ -131,11 +192,11 @@ class _StudentListPageState extends State<StudentListPage> {
                             style: TextStyle(color: Colors.grey),
                           ),
                         )
-                      : ListView.separated(
-                          padding: const EdgeInsets.all(12),
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(16),
+
                           itemCount: filteredStudents.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: 8),
+
                           itemBuilder: (context, index) {
                             final student = filteredStudents[index];
 
@@ -144,54 +205,127 @@ class _StudentListPageState extends State<StudentListPage> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (_) => SingleStudentViewPage(
-                                      token: widget.token,
-                                      student: student,
-                                    ),
+                                    builder: (_) =>
+                                        SingleStudentViewPage(student: student),
                                   ),
                                 );
                               },
-                              child: Card(
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
+
+                              child: Container(
+                                margin: const EdgeInsets.only(bottom: 14),
+
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(24),
+                                  boxShadow: AppColors.softShadow,
                                 ),
-                                elevation: 2,
-                                child: ListTile(
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    vertical: 8,
-                                    horizontal: 16,
-                                  ),
-                                  leading: CircleAvatar(
-                                    radius: 26,
-                                    backgroundColor: AppTheme.primaryColor
-                                        .withValues(alpha: 0.1),
-                                    backgroundImage: student.imageUrl != null
-                                        ? NetworkImage(student.imageUrl!)
-                                        : null,
-                                    child: student.imageUrl == null
-                                        ? const Icon(
-                                            Icons.person,
-                                            color: AppTheme.primaryColor,
-                                          )
-                                        : null,
-                                  ),
-                                  title: Text(
-                                    student.initialName,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                  subtitle: Text(
-                                    'Grade: ${student.grade?.gradeName ?? 'N/A'} • ${student.mobile}',
-                                    style: TextStyle(
-                                      color: Colors.grey[700],
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                  trailing: Text(
-                                    student.customId ?? 'N/A',
-                                    style: TextStyle(color: Colors.grey[500]),
+
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16),
+
+                                  child: Row(
+                                    children: [
+                                      // AVATAR
+                                      CircleAvatar(
+                                        radius: 30,
+                                        backgroundColor: AppColors.primary
+                                            .withOpacity(.1),
+
+                                        backgroundImage: student.imgUrl != null
+                                            ? NetworkImage(student.imgUrl!)
+                                            : null,
+
+                                        child: student.imgUrl == null
+                                            ? const Icon(
+                                                Icons.person,
+                                                color: AppColors.primary,
+                                                size: 30,
+                                              )
+                                            : null,
+                                      ),
+
+                                      const SizedBox(width: 14),
+
+                                      // DETAILS
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+
+                                          children: [
+                                            Text(
+                                              student.initialName,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 16,
+                                              ),
+                                            ),
+
+                                            const SizedBox(height: 4),
+
+                                            Text(
+                                              "Grade ${student.grade?.gradeName ?? 'N/A'}",
+                                              style: TextStyle(
+                                                color: Colors.grey.shade700,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+
+                                            const SizedBox(height: 2),
+
+                                            Text(
+                                              student.mobile ?? "N/A",
+                                              style: TextStyle(
+                                                color: Colors.grey.shade600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+
+                                      // QR / ID
+                                      Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.end,
+
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 6,
+                                            ),
+
+                                            decoration: BoxDecoration(
+                                              color: AppColors.primary
+                                                  .withOpacity(.08),
+
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                            ),
+
+                                            child: Text(
+                                              student.permanentQrActive == true
+                                                  ? student.customId ?? 'N/A'
+                                                  : student.temporaryQrCode ??
+                                                        'N/A',
+
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w700,
+                                                color: AppColors.primary,
+                                              ),
+                                            ),
+                                          ),
+
+                                          const SizedBox(height: 10),
+
+                                          const Icon(
+                                            Icons.arrow_forward_ios_rounded,
+                                            size: 16,
+                                            color: Colors.grey,
+                                          ),
+                                        ],
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),

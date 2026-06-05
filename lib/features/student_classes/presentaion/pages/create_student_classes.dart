@@ -1,22 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:nexorait_education_app/features/students/data/models/student_classes_model/class_status_request_model.dart';
 
+import '../../../../core/theme/app_colors.dart';
 import '../../../qr/data/model/read_student_classes/read_student_classes_response_model.dart';
+import '../../../qr/data/model/read_student_classes/student_mini_model.dart';
+import '../../../qr/presentation/bloc/read_student_classes/read_student_classes_bloc.dart';
 import '../../../student_grade/presentation/bloc/student_grade/student_grade_bloc.dart';
-import '../../../students/data/models/student_classes_model/create_student_request_class_model.dart';
-import '../../../students/presentaion/bloc/student_classes/student_classes_bloc.dart';
-import '../../data/models/class_category_model.dart';
-import '../../data/models/class_room_item_model.dart';
+import '../../../students/data/models/student_classes_model/student_class_model.dart';
+import '../../data/models/get_class_with_grade_model/student_class_data_model.dart';
+import '../../data/models/store_student_class_enrollment/create_student_class_enrollment_model.dart';
+import '../../data/models/store_student_class_enrollment/create_student_request_class_model.dart';
 import '../bloc/class_room/class_room_bloc.dart';
 
 class CreateStudentClasses extends StatefulWidget {
-  final String token;
   final ReadStudentClassesResponseModel readStudentClassesState;
 
   const CreateStudentClasses({
     super.key,
-    required this.token,
     required this.readStudentClassesState,
   });
 
@@ -24,239 +24,290 @@ class CreateStudentClasses extends StatefulWidget {
   State<CreateStudentClasses> createState() => _CreateStudentClassesState();
 }
 
-class _CreateStudentClassesState extends State<CreateStudentClasses>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _CreateStudentClassesState extends State<CreateStudentClasses> {
+  late ReadStudentClassesResponseModel _currentReadStudentClassesState;
 
   int? _selectedGradeId;
   int? _selectedClassId;
-  int? _selectedCategoryHasStudentClassId;
-  int? _updatingClassId;
-  bool _isStudentFreeCard = false;
+  int? _selectedCategoryFeeId;
 
-  double? _customFee;
-  double? _discountPercentage;
-  String? _discountType;
+  bool _isStudentFreeCard = false;
+  String? _selectedCustomFeeReason;
 
   final TextEditingController _customFeeController = TextEditingController();
+  final TextEditingController _discountPercentageController =
+      TextEditingController();
+  final TextEditingController _discountReasonController =
+      TextEditingController();
 
-  List<ClassRoomItemModel> _availableClasses = [];
-  List<ClassCategoryModel> _availableCategories = [];
+  final List<String> _customFeeReasons = const [
+    'Special request',
+    'Scholarship',
+    'Sibling discount',
+    'Transport issue',
+    'Other',
+  ];
+
+  List<dynamic> _availableClasses = [];
+  List<dynamic> _availableCategoryFees = [];
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-
-    context.read<StudentGradeBloc>().add(
-      GetStudentGradesEvent(token: widget.token),
-    );
+    _currentReadStudentClassesState = widget.readStudentClassesState;
+    context.read<StudentGradeBloc>().add(GetStudentGradesEvent());
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
     _customFeeController.dispose();
+    _discountPercentageController.dispose();
+    _discountReasonController.dispose();
     super.dispose();
+  }
+
+  void _showSnack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  String _formatDate(DateTime? value) {
+    if (value == null) return '-';
+    return "${value.year.toString().padLeft(4, '0')}-"
+        "${value.month.toString().padLeft(2, '0')}-"
+        "${value.day.toString().padLeft(2, '0')}";
+  }
+
+  String _getRefreshKey() {
+    final student = _currentReadStudentClassesState.student;
+    final customId = student?.customId?.toString().trim();
+
+    if (customId != null && customId.isNotEmpty) return customId;
+
+    return '';
+  }
+
+  void _refreshStudentClasses() {
+    final refreshKey = _getRefreshKey();
+
+    if (refreshKey.isEmpty) {
+      _showSnack('Student ID not found');
+      return;
+    }
+
+    context.read<ReadStudentClassesBloc>().add(
+      ReadStudentClassesRequested(qrCode: refreshKey),
+    );
   }
 
   void _resetSelectionsAfterGradeChange(int? gradeId) {
     setState(() {
       _selectedGradeId = gradeId;
       _selectedClassId = null;
-      _selectedCategoryHasStudentClassId = null;
+      _selectedCategoryFeeId = null;
       _availableClasses = [];
-      _availableCategories = [];
+      _availableCategoryFees = [];
     });
   }
 
-  void _resetFeeInputs() {
-    _customFee = null;
-    _discountPercentage = null;
-    _discountType = null;
+  void _clearCustomFeeFields() {
     _customFeeController.clear();
+    _selectedCustomFeeReason = null;
   }
 
-  void _resetFormAfterSuccess() {
+  void _clearDiscountFields() {
+    _discountPercentageController.clear();
+    _discountReasonController.clear();
+  }
+
+  void _onFreeCardChanged(bool value) {
     setState(() {
-      _selectedGradeId = null;
-      _selectedClassId = null;
-      _selectedCategoryHasStudentClassId = null;
-      _availableClasses = [];
-      _availableCategories = [];
-      _isStudentFreeCard = false;
-      _resetFeeInputs();
+      _isStudentFreeCard = value;
+      if (value) {
+        _clearCustomFeeFields();
+        _clearDiscountFields();
+      }
     });
   }
 
-  List<ClassRoomItemModel> _extractClassesFromGradeData(
-    Map<String, List<ClassRoomItemModel>> gradeData,
-  ) {
-    final allClasses = gradeData.values.expand((e) => e).toList();
-
-    final Map<int, ClassRoomItemModel> uniqueClasses = {};
-    for (final item in allClasses) {
-      uniqueClasses[item.classId] = item;
-    }
-
-    return uniqueClasses.values.toList();
-  }
-
-  void _showSnack(String message) {
-    ScaffoldMessenger.of(context)
-      ..clearSnackBars()
-      ..showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  String _formatMoney(dynamic value) {
-    if (value == null) return '-';
-    return value.toString();
-  }
-
-  dynamic _tryGet(dynamic object, String key) {
+  StudentClassDataModel? _getSelectedClassData() {
     try {
-      final dynamic value = (object as dynamic);
-      switch (key) {
-        case 'defaultFee':
-          return value.defaultFee;
-        case 'finalFee':
-          return value.finalFee;
-        case 'feeType':
-          return value.feeType;
-        case 'discountPercentage':
-          return value.discountPercentage;
-        case 'discountType':
-          return value.discountType;
-        case 'customFee':
-          return value.customFee;
-        case 'inactiveText':
-          return value.inactiveText;
-        case 'isFreeCard':
-          return value.isFreeCard;
-        default:
-          return null;
-      }
+      return _availableClasses.firstWhere((e) => e.classId == _selectedClassId)
+          as StudentClassDataModel;
     } catch (_) {
       return null;
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final student = widget.readStudentClassesState.data.student;
+  String? _getSelectedClassName() {
+    final selectedClass = _getSelectedClassData();
+    if (selectedClass == null) return null;
+    final medium = selectedClass.medium;
+    return medium.isEmpty
+        ? selectedClass.className
+        : '${selectedClass.className} ($medium)';
+  }
 
-    return MultiBlocListener(
-      listeners: [
-        BlocListener<ClassRoomBloc, ClassRoomState>(
-          listener: (context, state) {
-            if (state is ClassRoomLoaded) {
-              final gradeKey = _selectedGradeId?.toString();
-              if (gradeKey == null) return;
+  String? _getSelectedCategoryName() {
+    try {
+      final selectedFee = _availableCategoryFees.firstWhere(
+        (e) => e.classCategoryFeeId == _selectedCategoryFeeId,
+      );
+      return selectedFee.categoryName?.toString();
+    } catch (_) {
+      return null;
+    }
+  }
 
-              final gradeData = state.response.data[gradeKey] ?? {};
-              final loadedClasses = _extractClassesFromGradeData(gradeData);
+  double? _tryParseDouble(String value) {
+    final parsed = double.tryParse(value.trim());
+    if (parsed == null) return null;
+    return parsed;
+  }
 
-              if (!mounted) return;
+  String _generateAutoNote() {
+    final student = _currentReadStudentClassesState.student;
+    final studentName = student?.initialName?.trim().isNotEmpty == true
+        ? student!.initialName!.trim()
+        : 'Student';
 
-              setState(() {
-                _availableClasses = loadedClasses;
-                _availableCategories = [];
-                _selectedClassId = null;
-                _selectedCategoryHasStudentClassId = null;
-              });
-            }
-          },
-        ),
-        BlocListener<StudentClassesBloc, StudentClassesState>(
-          listener: (context, state) {
-            if (state is CreateStudentClassSuccess) {
-              _showSnack(state.response.message);
-              _resetFormAfterSuccess();
-            } else if (state is StudentClassStatusChanged) {
-              setState(() {
-                _updatingClassId = null;
-              });
+    final className = _getSelectedClassName() ?? '-';
+    final categoryName = _getSelectedCategoryName() ?? '-';
+    final gradeName = student?.gradeName ?? '-';
 
-              _showSnack(state.message);
-            } else if (state is StudentClassesError) {
-              setState(() {
-                _updatingClassId = null;
-              });
+    final noteParts = <String>[
+      'Student: $studentName',
+      'Grade: $gradeName',
+      'Class: $className',
+      'Category: $categoryName',
+    ];
 
-              _showSnack(state.message);
-            }
-          },
-        ),
-      ],
-      child: Scaffold(
-        backgroundColor: const Color(0xfff5f7fb),
-        appBar: AppBar(
-          title: const Text('Student Classes'),
-          centerTitle: true,
-          elevation: 0,
-        ),
-        body: Column(
-          children: [
-            _buildStudentHeader(student),
-            const SizedBox(height: 12),
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: TabBar(
-                controller: _tabController,
-                indicatorSize: TabBarIndicatorSize.tab,
-                dividerColor: Colors.transparent,
-                tabs: const [
-                  Tab(text: 'Add Class'),
-                  Tab(text: 'View Classes'),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildAddClassSection(),
-                  _buildViewClassesSection(),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+    if (_isStudentFreeCard) {
+      noteParts.add('Free card enabled');
+    } else {
+      final customFee = _tryParseDouble(_customFeeController.text);
+      final discount = _tryParseDouble(_discountPercentageController.text);
+
+      if (customFee != null) {
+        noteParts.add('Custom fee: LKR ${customFee.toStringAsFixed(2)}');
+      }
+
+      if (_selectedCustomFeeReason != null &&
+          _selectedCustomFeeReason!.trim().isNotEmpty) {
+        noteParts.add('Custom fee reason: ${_selectedCustomFeeReason!.trim()}');
+      }
+
+      if (discount != null) {
+        noteParts.add('Discount: ${discount.toStringAsFixed(2)}%');
+      }
+
+      if (_discountReasonController.text.trim().isNotEmpty) {
+        noteParts.add(
+          'Discount reason: ${_discountReasonController.text.trim()}',
+        );
+      }
+    }
+
+    return noteParts.join(' | ');
+  }
+
+  void _loadClassesForGrade(int? gradeId) {
+    if (gradeId == null) return;
+
+    context.read<ClassRoomBloc>().add(
+      LoadClassesByGradeEvent(gradeId: gradeId.toString()),
     );
   }
 
-  Widget _buildStudentHeader(dynamic student) {
+  void _showViewClassesSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.9,
+          minChildSize: 0.65,
+          maxChildSize: 0.96,
+          builder: (context, scrollController) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Column(
+                children: [
+                  const SizedBox(height: 8),
+                  Container(
+                    width: 52,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'Student Enrolled Classes',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.close),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      controller: scrollController,
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                      child: _buildViewClassesSection(),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildStudentHeader(StudentMiniModel? student) {
+    final imgUrl = student?.imgUrl;
+    final name = student?.initialName ?? '-';
+
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xff2563eb), Color(0xff1d4ed8)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
+        gradient: AppColors.primaryGradient,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: AppColors.mediumShadow,
       ),
       child: Row(
         children: [
           CircleAvatar(
-            radius: 30,
+            radius: 34,
             backgroundColor: Colors.white,
-            backgroundImage:
-                student.imageUrl != null &&
-                    student.imageUrl.toString().isNotEmpty
-                ? NetworkImage(student.imageUrl)
+            backgroundImage: (imgUrl != null && imgUrl.isNotEmpty)
+                ? NetworkImage(imgUrl)
                 : null,
-            child:
-                (student.imageUrl == null ||
-                    student.imageUrl.toString().isEmpty)
-                ? const Icon(Icons.person, size: 30)
+            child: (imgUrl == null || imgUrl.isEmpty)
+                ? const Icon(Icons.person_rounded, size: 34)
                 : null,
           ),
           const SizedBox(width: 14),
@@ -265,21 +316,23 @@ class _CreateStudentClassesState extends State<CreateStudentClasses>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  student.initialName ?? '',
+                  name,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 17,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'ID: ${student.customId}',
+                  'ID: ${student?.customId ?? '-'}',
                   style: const TextStyle(color: Colors.white70),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Guardian: ${student.guardianMobile ?? '-'}',
+                  'Grade: ${student?.gradeName ?? '-'}',
                   style: const TextStyle(color: Colors.white70),
                 ),
               ],
@@ -291,520 +344,497 @@ class _CreateStudentClassesState extends State<CreateStudentClasses>
   }
 
   Widget _buildAddClassSection() {
-    return SingleChildScrollView(
+    return Padding(
       padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withValues(alpha: 0.08),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: AppColors.softShadow,
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(.10),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(
+                    Icons.playlist_add_rounded,
+                    color: AppColors.primary,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Assign New Class',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                  ),
                 ),
               ],
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Assign New Class',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 16),
+            const SizedBox(height: 18),
 
-                const Text(
-                  'Select Grade',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 8),
+            _label('Select Grade'),
+            const SizedBox(height: 8),
+            BlocBuilder<StudentGradeBloc, StudentGradeState>(
+              builder: (context, state) {
+                if (state is StudentGradeLoading) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 10),
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
 
-                BlocBuilder<StudentGradeBloc, StudentGradeState>(
-                  builder: (context, state) {
-                    if (state is StudentGradeLoading) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-
-                    if (state is StudentGradeLoaded) {
-                      return DropdownButtonFormField<int>(
-                        value: _selectedGradeId,
-                        decoration: InputDecoration(
-                          hintText: 'Choose a grade',
-                          filled: true,
-                          fillColor: const Color(0xfff8fafc),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
-                        items: state.grades.map((grade) {
-                          return DropdownMenuItem<int>(
-                            value: grade.gradeId,
-                            child: Text('Grade ${grade.gradeName}'),
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          _resetSelectionsAfterGradeChange(value);
-
-                          if (value != null) {
-                            context.read<ClassRoomBloc>().add(
-                              LoadClassesByGradeEvent(
-                                token: widget.token,
-                                gradeId: value.toString(),
-                              ),
-                            );
-                          }
-                        },
+                if (state is StudentGradeLoaded) {
+                  return DropdownButtonFormField<int>(
+                    initialValue: _selectedGradeId,
+                    isExpanded: true,
+                    decoration: _fieldDecoration('Choose a grade'),
+                    items: state.grades.map((grade) {
+                      return DropdownMenuItem<int>(
+                        value: grade.gradeId,
+                        child: Text('Grade ${grade.gradeName}'),
                       );
-                    }
+                    }).toList(),
+                    onChanged: (value) {
+                      _resetSelectionsAfterGradeChange(value);
+                      _loadClassesForGrade(value);
+                    },
+                  );
+                }
 
-                    if (state is StudentGradeError) {
-                      return Text(
-                        state.message,
-                        style: const TextStyle(color: Colors.red),
-                      );
-                    }
+                if (state is StudentGradeError) {
+                  return _errorBox(state.message);
+                }
 
-                    return const SizedBox();
-                  },
-                ),
+                return const SizedBox();
+              },
+            ),
 
-                const SizedBox(height: 16),
+            const SizedBox(height: 16),
+            _label('Select Class'),
+            const SizedBox(height: 8),
+            BlocBuilder<ClassRoomBloc, ClassRoomState>(
+              builder: (context, state) {
+                final classItems = state is ClassRoomLoaded
+                    ? state.response.data
+                    : _availableClasses;
 
-                const Text(
-                  'Select Class',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 8),
+                if (_selectedGradeId == null) {
+                  return DropdownButtonFormField<int>(
+                    initialValue: null,
+                    isExpanded: true,
+                    decoration: _fieldDecoration('Select grade first'),
+                    items: const [],
+                    onChanged: null,
+                  );
+                }
 
-                BlocBuilder<ClassRoomBloc, ClassRoomState>(
-                  builder: (context, state) {
-                    if (_selectedGradeId == null) {
-                      return DropdownButtonFormField<int>(
-                        value: null,
-                        isExpanded: true,
-                        decoration: InputDecoration(
-                          hintText: 'Select grade first',
-                          filled: true,
-                          fillColor: const Color(0xfff8fafc),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
-                        items: const [],
-                        onChanged: null,
-                      );
-                    }
+                if (state is ClassRoomLoading) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 10),
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
 
-                    if (state is ClassRoomLoading) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
+                if (state is ClassRoomError) {
+                  return _errorBox(state.message);
+                }
 
-                    if (state is ClassRoomError) {
-                      return Text(
-                        state.message,
-                        style: const TextStyle(color: Colors.red),
-                      );
-                    }
-
-                    return DropdownButtonFormField<int>(
-                      value: _selectedClassId,
-                      isExpanded: true,
-                      itemHeight: null,
-                      decoration: InputDecoration(
-                        hintText: _availableClasses.isEmpty
-                            ? 'No classes available'
-                            : 'Choose a class',
-                        filled: true,
-                        fillColor: const Color(0xfff8fafc),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                      selectedItemBuilder: (context) {
-                        return _availableClasses.map((classItem) {
-                          final teacherName =
-                              '${classItem.teacherFname ?? ''} ${classItem.teacherLname ?? ''}'
-                                  .trim();
-
-                          return Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              teacherName.isEmpty
-                                  ? '${classItem.className} (${classItem.medium})'
-                                  : '${classItem.className} (${classItem.medium}) - $teacherName',
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
-                            ),
-                          );
-                        }).toList();
-                      },
-                      items: _availableClasses.map((classItem) {
-                        final teacherName =
-                            '${classItem.teacherFname ?? ''} ${classItem.teacherLname ?? ''}'
-                                .trim();
-
-                        return DropdownMenuItem<int>(
-                          value: classItem.classId,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 6),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '${classItem.className} (${classItem.medium})',
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 1,
-                                ),
-                                if (teacherName.isNotEmpty)
-                                  Text(
-                                    teacherName,
-                                    overflow: TextOverflow.ellipsis,
-                                    maxLines: 1,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade600,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: _availableClasses.isEmpty
-                          ? null
-                          : (value) {
-                              ClassRoomItemModel? selectedClass;
-
-                              try {
-                                selectedClass = _availableClasses.firstWhere(
-                                  (e) => e.classId == value,
-                                );
-                              } catch (_) {
-                                selectedClass = null;
-                              }
-
-                              setState(() {
-                                _selectedClassId = value;
-                                _availableCategories =
-                                    selectedClass?.categories ?? [];
-                                _selectedCategoryHasStudentClassId = null;
-                              });
-                            },
-                    );
-                  },
-                ),
-
-                const SizedBox(height: 16),
-
-                const Text(
-                  'Select Category',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 8),
-
-                DropdownButtonFormField<int>(
-                  value: _selectedCategoryHasStudentClassId,
-                  decoration: InputDecoration(
-                    hintText: _selectedClassId == null
-                        ? 'Select class first'
-                        : _availableCategories.isEmpty
-                        ? 'No categories available'
-                        : 'Choose a category',
-                    filled: true,
-                    fillColor: const Color(0xfff8fafc),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide.none,
-                    ),
+                return DropdownButtonFormField<int>(
+                  initialValue: _selectedClassId,
+                  isExpanded: true,
+                  itemHeight: null,
+                  decoration: _fieldDecoration(
+                    classItems.isEmpty
+                        ? 'No classes available'
+                        : 'Choose a class',
                   ),
-                  items: _availableCategories.map((category) {
+                  items: classItems.map<DropdownMenuItem<int>>((classItem) {
+                    final teacher = (classItem.teacherName ?? '').toString();
+
                     return DropdownMenuItem<int>(
-                      value: category.classCategoryHasStudentClassId,
-                      child: Text(
-                        '${category.categoryName} - LKR ${category.fees}',
+                      value: classItem.classId,
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: RichText(
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 2,
+                          text: TextSpan(
+                            style: DefaultTextStyle.of(context).style,
+                            children: [
+                              TextSpan(
+                                text:
+                                    '${classItem.className} (${classItem.medium})\n',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                  color: Colors.black,
+                                ),
+                              ),
+                              TextSpan(
+                                text: teacher,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     );
                   }).toList(),
-                  onChanged: _availableCategories.isEmpty
+                  onChanged: classItems.isEmpty
                       ? null
                       : (value) {
+                          StudentClassDataModel? selected;
+
+                          try {
+                            selected = classItems.firstWhere(
+                              (e) => e.classId == value,
+                            );
+                          } catch (_) {
+                            selected = null;
+                          }
+
                           setState(() {
-                            _selectedCategoryHasStudentClassId = value;
+                            _selectedClassId = value;
+                            _selectedCategoryFeeId = null;
+                            _availableCategoryFees =
+                                selected?.categoryFees ?? [];
                           });
                         },
-                ),
+                );
+              },
+            ),
 
-                const SizedBox(height: 16),
-
-                const Text(
-                  'Student Free Card',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 8),
-
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xfff8fafc),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          _isStudentFreeCard ? 'Enabled' : 'Disabled',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: _isStudentFreeCard
-                                ? Colors.green
-                                : Colors.grey.shade700,
-                          ),
-                        ),
-                      ),
-                      Switch(
-                        value: _isStudentFreeCard,
-                        onChanged: (value) {
-                          setState(() {
-                            _isStudentFreeCard = value;
-                            if (_isStudentFreeCard) {
-                              _resetFeeInputs();
-                            }
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-
-                if (!_isStudentFreeCard) ...[
-                  const SizedBox(height: 16),
-
-                  const Text(
-                    'Custom Fee (Optional)',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 8),
-
-                  TextFormField(
-                    controller: _customFeeController,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: 'Enter custom fee',
-                      filled: true,
-                      fillColor: const Color(0xfff8fafc),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                    onChanged: (value) {
+            const SizedBox(height: 16),
+            _label('Select Category Fee'),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<int>(
+              initialValue: _selectedCategoryFeeId,
+              isExpanded: true,
+              decoration: _fieldDecoration(
+                _selectedClassId == null
+                    ? 'Select class first'
+                    : _availableCategoryFees.isEmpty
+                    ? 'No category fees available'
+                    : 'Choose category fee',
+              ),
+              items: _availableCategoryFees.map<DropdownMenuItem<int>>((
+                feeRow,
+              ) {
+                return DropdownMenuItem<int>(
+                  value: feeRow.classCategoryFeeId,
+                  child: Text('${feeRow.categoryName} - LKR ${feeRow.fee}'),
+                );
+              }).toList(),
+              onChanged: _availableCategoryFees.isEmpty
+                  ? null
+                  : (value) {
                       setState(() {
-                        _customFee = value.trim().isEmpty
-                            ? null
-                            : double.tryParse(value.trim());
-
-                        if (_customFee != null) {
-                          _discountPercentage = null;
-                          _discountType = null;
-                        }
+                        _selectedCategoryFeeId = value;
                       });
                     },
-                  ),
+            ),
 
-                  const SizedBox(height: 16),
-
-                  const Text(
-                    'Discount % (Optional)',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 8),
-
-                  DropdownButtonFormField<double>(
-                    value: _discountPercentage,
-                    decoration: InputDecoration(
-                      hintText: _customFee != null
-                          ? 'Custom fee selected'
-                          : 'Select discount',
-                      filled: true,
-                      fillColor: const Color(0xfff8fafc),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide.none,
+            const SizedBox(height: 16),
+            _label('Student Free Card'),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xfff8fafc),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _isStudentFreeCard ? 'Enabled' : 'Disabled',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: _isStudentFreeCard
+                            ? Colors.green
+                            : Colors.grey.shade700,
                       ),
                     ),
-                    items: const [10, 25, 50, 75, 100].map((e) {
-                      return DropdownMenuItem<double>(
-                        value: e.toDouble(),
-                        child: Text('$e %'),
-                      );
-                    }).toList(),
-                    onChanged: _customFee != null
-                        ? null
-                        : (value) {
-                            setState(() {
-                              _discountPercentage = value;
-
-                              if (value == 50) {
-                                _discountType = 'half_card';
-                              } else if (value == 100) {
-                                _discountType = 'free_card';
-                              } else {
-                                _discountType = null;
-                              }
-                            });
-                          },
+                  ),
+                  Switch(
+                    value: _isStudentFreeCard,
+                    activeColor: AppColors.primary,
+                    onChanged: _onFreeCardChanged,
                   ),
                 ],
-
-                const SizedBox(height: 20),
-
-                BlocBuilder<StudentClassesBloc, StudentClassesState>(
-                  builder: (context, state) {
-                    final isLoading = state is StudentClassesLoading;
-
-                    return SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton.icon(
-                        onPressed: isLoading
-                            ? null
-                            : () {
-                                if (_selectedGradeId == null) {
-                                  _showSnack('Please select a grade');
-                                  return;
-                                }
-
-                                if (_selectedClassId == null) {
-                                  _showSnack('Please select a class');
-                                  return;
-                                }
-
-                                if (_selectedCategoryHasStudentClassId ==
-                                    null) {
-                                  _showSnack('Please select a category');
-                                  return;
-                                }
-
-                                if (!_isStudentFreeCard &&
-                                    _customFee != null &&
-                                    _discountPercentage != null) {
-                                  _showSnack(
-                                    'Cannot use custom fee and discount together',
-                                  );
-                                  return;
-                                }
-
-                                context.read<StudentClassesBloc>().add(
-                                  SubmitCreateStudentClass(
-                                    request: CreateStudentClassRequestModel(
-                                      token: widget.token,
-                                      studentId: widget
-                                          .readStudentClassesState
-                                          .data
-                                          .student
-                                          .id,
-                                      studentClassesId: _selectedClassId!,
-                                      classCategoryHasStudentClassId:
-                                          _selectedCategoryHasStudentClassId!,
-                                      status: true,
-                                      isFreeCard: _isStudentFreeCard,
-                                      customFee:
-                                          _isStudentFreeCard ? null : _customFee,
-                                      discountPercentage: _isStudentFreeCard
-                                          ? null
-                                          : _discountPercentage,
-                                      discountType: _isStudentFreeCard
-                                          ? 'free_card'
-                                          : _discountType,
-                                    ),
-                                  ),
-                                );
-                              },
-                        icon: isLoading
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Icon(Icons.add),
-                        label: Text(isLoading ? 'Adding...' : 'Add Class'),
-                      ),
-                    );
-                  },
-                ),
-              ],
+              ),
             ),
-          ),
-        ],
+
+            if (!_isStudentFreeCard) ...[
+              const SizedBox(height: 16),
+              _textField(
+                controller: _customFeeController,
+                label: 'Custom Fee',
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                onChanged: (value) {
+                  if (value.trim().isNotEmpty) {
+                    setState(_clearDiscountFields);
+                  }
+                },
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: _selectedCustomFeeReason,
+                isExpanded: true,
+                decoration: _fieldDecoration('Custom Fee Reason'),
+                items: _customFeeReasons.map((reason) {
+                  return DropdownMenuItem<String>(
+                    value: reason,
+                    child: Text(reason),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedCustomFeeReason = value;
+                    if (value != null && value.trim().isNotEmpty) {
+                      _clearDiscountFields();
+                    }
+                  });
+                },
+              ),
+              const SizedBox(height: 12),
+              _textField(
+                controller: _discountPercentageController,
+                label: 'Discount Percentage',
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                onChanged: (value) {
+                  if (value.trim().isNotEmpty) {
+                    setState(_clearCustomFeeFields);
+                  }
+                },
+              ),
+              const SizedBox(height: 12),
+              _textField(
+                controller: _discountReasonController,
+                label: 'Discount Reason',
+                onChanged: (value) {
+                  if (value.trim().isNotEmpty) {
+                    setState(_clearCustomFeeFields);
+                  }
+                },
+              ),
+            ],
+
+            const SizedBox(height: 20),
+            BlocBuilder<ClassRoomBloc, ClassRoomState>(
+              builder: (context, state) {
+                final isLoading = state is ClassRoomCreateLoading;
+
+                return SizedBox(
+                  height: 52,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    onPressed: isLoading
+                        ? null
+                        : () {
+                            final studentId =
+                                _currentReadStudentClassesState.student?.id;
+
+                            if (studentId == null) {
+                              _showSnack('Student not found');
+                              return;
+                            }
+
+                            if (_selectedGradeId == null) {
+                              _showSnack('Please select a grade');
+                              return;
+                            }
+
+                            if (_selectedClassId == null) {
+                              _showSnack('Please select a class');
+                              return;
+                            }
+
+                            if (_selectedCategoryFeeId == null) {
+                              _showSnack('Please select a category fee');
+                              return;
+                            }
+
+                            if (!_isStudentFreeCard) {
+                              final customFeeText = _customFeeController.text
+                                  .trim();
+                              final discountText = _discountPercentageController
+                                  .text
+                                  .trim();
+
+                              final hasCustomFee = customFeeText.isNotEmpty;
+                              final hasDiscount = discountText.isNotEmpty;
+
+                              if (hasCustomFee && hasDiscount) {
+                                _showSnack(
+                                  'Custom fee and discount cannot be used together',
+                                );
+                                return;
+                              }
+
+                              if (hasCustomFee &&
+                                  (_selectedCustomFeeReason == null ||
+                                      _selectedCustomFeeReason!
+                                          .trim()
+                                          .isEmpty)) {
+                                _showSnack('Please select custom fee reason');
+                                return;
+                              }
+
+                              if (hasDiscount &&
+                                  _discountReasonController.text
+                                      .trim()
+                                      .isEmpty) {
+                                _showSnack('Please enter discount reason');
+                                return;
+                              }
+
+                              if (hasDiscount &&
+                                  double.tryParse(discountText) == null) {
+                                _showSnack('Invalid discount percentage');
+                                return;
+                              }
+
+                              if (hasCustomFee &&
+                                  double.tryParse(customFeeText) == null) {
+                                _showSnack('Invalid custom fee');
+                                return;
+                              }
+                            }
+
+                            final autoNote = _generateAutoNote();
+
+                            final enrollmentModel =
+                                CreateStudentClassEnrollmentModel(
+                                  studentId: studentId,
+                                  studentClassId: _selectedClassId!,
+                                  classCategoryFeeId: _selectedCategoryFeeId!,
+                                  isFreeCard: _isStudentFreeCard,
+                                  customFee: _isStudentFreeCard
+                                      ? null
+                                      : (_customFeeController.text
+                                                .trim()
+                                                .isEmpty
+                                            ? null
+                                            : double.tryParse(
+                                                _customFeeController.text
+                                                    .trim(),
+                                              )),
+                                  customFeeReason: _isStudentFreeCard
+                                      ? null
+                                      : _selectedCustomFeeReason,
+                                  discountPercentage: _isStudentFreeCard
+                                      ? null
+                                      : (_discountPercentageController.text
+                                                .trim()
+                                                .isEmpty
+                                            ? null
+                                            : double.tryParse(
+                                                _discountPercentageController
+                                                    .text
+                                                    .trim(),
+                                              )),
+                                  discountReason: _isStudentFreeCard
+                                      ? null
+                                      : (_discountReasonController.text
+                                                .trim()
+                                                .isEmpty
+                                            ? null
+                                            : _discountReasonController.text
+                                                  .trim()),
+                                  note: autoNote,
+                                );
+
+                            context.read<ClassRoomBloc>().add(
+                              CreateStudentClassEnrollmentEvent(
+                                request: CreateStudentClassRequestModel(
+                                  classEnrollmentModel: enrollmentModel,
+                                ),
+                              ),
+                            );
+                          },
+                    icon: isLoading
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.add),
+                    label: Text(isLoading ? 'Adding...' : 'Add Class'),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildViewClassesSection() {
-    return BlocBuilder<StudentClassesBloc, StudentClassesState>(
-      builder: (context, state) {
-        List<dynamic> classes = widget.readStudentClassesState.data.classes;
+    final classes = _currentReadStudentClassesState.data;
+    final activeClasses = classes.where((e) => e.isActive == true).toList();
+    final inactiveClasses = classes.where((e) => e.isActive == false).toList();
 
-        if (state is StudentClassesLoaded) {
-          classes = state.response.data;
-        }
-
-        final activeClasses = classes.where((e) => e.status == true).toList();
-        final inactiveClasses = classes
-            .where((e) => e.status == false)
-            .toList();
-
-        return SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildSectionTitle(
-                title: 'Active Classes',
-                count: activeClasses.length,
-                color: Colors.green,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle(
+          title: 'Active Classes',
+          count: activeClasses.length,
+          color: Colors.green,
+        ),
+        const SizedBox(height: 10),
+        activeClasses.isEmpty
+            ? _buildEmptyCard('No active classes')
+            : Column(
+                children: activeClasses
+                    .map((item) => _buildClassCard(item, true))
+                    .toList(),
               ),
-              const SizedBox(height: 10),
-              activeClasses.isEmpty
-                  ? _buildEmptyCard('No active classes')
-                  : Column(
-                      children: activeClasses
-                          .map((item) => _buildClassCard(item, true))
-                          .toList(),
-                    ),
-              const SizedBox(height: 20),
-              _buildSectionTitle(
-                title: 'Inactive Classes',
-                count: inactiveClasses.length,
-                color: Colors.red,
+        const SizedBox(height: 20),
+        _buildSectionTitle(
+          title: 'Inactive Classes',
+          count: inactiveClasses.length,
+          color: Colors.red,
+        ),
+        const SizedBox(height: 10),
+        inactiveClasses.isEmpty
+            ? _buildEmptyCard('No inactive classes')
+            : Column(
+                children: inactiveClasses
+                    .map((item) => _buildClassCard(item, false))
+                    .toList(),
               ),
-              const SizedBox(height: 10),
-              inactiveClasses.isEmpty
-                  ? _buildEmptyCard('No inactive classes')
-                  : Column(
-                      children: inactiveClasses
-                          .map((item) => _buildClassCard(item, false))
-                          .toList(),
-                    ),
-            ],
-          ),
-        );
-      },
+      ],
     );
   }
 
@@ -832,66 +862,40 @@ class _CreateStudentClassesState extends State<CreateStudentClasses>
     );
   }
 
-  Widget _buildClassCard(dynamic item, bool isActive) {
-    final studentClass = item.studentClass;
-    final category = item.classCategory;
-    final isUpdatingThisCard =
-        _updatingClassId == item.studentStudentStudentClassesId;
-
-    final dynamic defaultFee = _tryGet(item, 'defaultFee') ?? category.fees;
-    final dynamic finalFee = _tryGet(item, 'finalFee') ?? category.fees;
-    final String feeType = _tryGet(item, 'feeType')?.toString() ?? 'Standard';
-    final dynamic discountPercentage = _tryGet(item, 'discountPercentage');
-    final dynamic discountType = _tryGet(item, 'discountType');
-    final dynamic customFee = _tryGet(item, 'customFee');
-    final bool isFreeCard = (_tryGet(item, 'isFreeCard') ?? false) == true;
-
+  Widget _buildClassCard(StudentClassModel item, bool isActive) {
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(
           color: isActive
-              ? Colors.green.withValues(alpha: 0.25)
-              : Colors.red.withValues(alpha: 0.25),
+              ? Colors.green.withOpacity(0.20)
+              : Colors.red.withOpacity(0.20),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.06),
+            color: Colors.grey.withOpacity(0.06),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Expanded(
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        studentClass.className,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      '(Grade ${item.readStudentGrade.gradeName})',
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  item.className,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               Container(
@@ -901,8 +905,8 @@ class _CreateStudentClassesState extends State<CreateStudentClasses>
                 ),
                 decoration: BoxDecoration(
                   color: isActive
-                      ? Colors.green.withValues(alpha: 0.12)
-                      : Colors.red.withValues(alpha: 0.12),
+                      ? Colors.green.withOpacity(0.12)
+                      : Colors.red.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -914,86 +918,98 @@ class _CreateStudentClassesState extends State<CreateStudentClasses>
                   ),
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          _infoRow(Icons.category_outlined, 'Category', category.categoryName),
-          _infoRow(Icons.language, 'Medium', studentClass.medium),
-          _infoRow(
-            Icons.payments_outlined,
-            'Default Fee',
-            'LKR ${_formatMoney(defaultFee)}',
-          ),
-          _infoRow(
-            Icons.price_check_outlined,
-            'Final Fee',
-            'LKR ${_formatMoney(finalFee)}',
-          ),
-          _infoRow(Icons.local_offer_outlined, 'Fee Type', feeType),
-          _infoRow(
-            Icons.card_membership_outlined,
-            'Free Card',
-            isFreeCard ? 'Yes' : 'No',
-          ),
-          if (discountPercentage != null)
-            _infoRow(Icons.percent, 'Discount', '${discountPercentage}%'),
-          if (discountType != null)
-            _infoRow(
-              Icons.sell_outlined,
-              'Discount Type',
-              discountType.toString(),
-            ),
-          if (customFee != null)
-            _infoRow(
-              Icons.edit_note_outlined,
-              'Custom Fee',
-              'LKR ${_formatMoney(customFee)}',
-            ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: isUpdatingThisCard
-                      ? null
-                      : () {
-                          setState(() {
-                            _updatingClassId =
-                                item.studentStudentStudentClassesId;
-                          });
-
-                          context.read<StudentClassesBloc>().add(
-                            ChangeStudentClassStatus(
-                              classStatusRequest: ClassStatusRequestModel(
-                                studentStudentStudentClassId:
-                                    item.studentStudentStudentClassesId,
-                                token: widget.token,
-                              ),
-                              studentId: widget
-                                  .readStudentClassesState
-                                  .data
-                                  .student
-                                  .id,
-                            ),
-                          );
-                        },
-                  icon: isUpdatingThisCard
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Icon(isActive ? Icons.block : Icons.check_circle),
-                  label: Text(
-                    isUpdatingThisCard
-                        ? 'Updating...'
-                        : (isActive ? 'Deactivate' : 'Activate'),
+              const SizedBox(width: 6),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.10),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: IconButton(
+                  tooltip: 'Edit Class',
+                  icon: const Icon(Icons.edit_outlined, color: Colors.blue),
+                  onPressed: () {
+                    _showSnack('Edit screen is not connected yet');
+                  },
+                ),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                decoration: BoxDecoration(
+                  color: isActive
+                      ? Colors.red.withOpacity(0.10)
+                      : Colors.green.withOpacity(0.10),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: IconButton(
+                  tooltip: isActive ? 'Deactivate Class' : 'Activate Class',
+                  icon: Icon(
+                    isActive
+                        ? Icons.toggle_off_outlined
+                        : Icons.toggle_on_outlined,
+                    color: isActive ? Colors.red : Colors.green,
+                    size: 28,
                   ),
+                  onPressed: () {
+                    context.read<ClassRoomBloc>().add(
+                      ToggleClassStatusEvent(enrollmentId: item.enrollmentId),
+                    );
+                  },
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _infoChip('Class', item.className),
+              _infoChip('Grade', item.gradeName),
+              _infoChip('Category', item.categoryName),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _infoRow(Icons.person_outline, 'Teacher', item.teacherName),
+          _infoRow(
+            Icons.payments_outlined,
+            'Default Fee',
+            'LKR ${item.defultFee.toStringAsFixed(2)}',
+          ),
+          _infoRow(
+            Icons.price_check_outlined,
+            'Final Fee',
+            'LKR ${item.finalFee.toStringAsFixed(2)}',
+          ),
+          _infoRow(
+            Icons.calendar_month_outlined,
+            'Registered Date',
+            _formatDate(item.registeredDate),
+          ),
+          _infoRow(
+            Icons.local_activity_outlined,
+            'Free Card',
+            item.isFreeCard ? 'Yes' : 'No',
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _infoChip(String title, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xfff8fafc),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Text(
+        '$title: $value',
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: Colors.grey.shade800,
+        ),
       ),
     );
   }
@@ -1025,11 +1041,165 @@ class _CreateStudentClassesState extends State<CreateStudentClasses>
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border),
       ),
       child: Center(
         child: Text(
           text,
           style: TextStyle(color: Colors.grey.shade600, fontSize: 15),
+        ),
+      ),
+    );
+  }
+
+  Widget _label(String text) {
+    return Text(
+      text,
+      style: const TextStyle(
+        fontWeight: FontWeight.w700,
+        fontSize: 14,
+        color: AppColors.dark,
+      ),
+    );
+  }
+
+  InputDecoration _fieldDecoration(String hint) {
+    return InputDecoration(
+      hintText: hint,
+      filled: true,
+      fillColor: const Color(0xfff8fafc),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide.none,
+      ),
+    );
+  }
+
+  Widget _textField({
+    required TextEditingController controller,
+    required String label,
+    TextInputType? keyboardType,
+    ValueChanged<String>? onChanged,
+  }) {
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      onChanged: onChanged,
+      decoration: _fieldDecoration(label),
+    );
+  }
+
+  Widget _errorBox(String message) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.red.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.red.withOpacity(0.2)),
+      ),
+      child: Text(
+        message,
+        style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final student = _currentReadStudentClassesState.student;
+
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<ClassRoomBloc, ClassRoomState>(
+          listener: (context, state) {
+            if (state is ClassRoomCreateSuccess) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Class enrolled successfully'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+              _refreshStudentClasses();
+            }
+
+            if (state is ClassRoomCreateError) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(state.message),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+
+            if (state is ClassRoomStatusToggleSuccess) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(state.response.message),
+                  backgroundColor: Colors.green,
+                ),
+              );
+              _refreshStudentClasses();
+            }
+
+            if (state is ClassRoomStatusToggleError) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(state.message),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          },
+        ),
+        BlocListener<ReadStudentClassesBloc, ReadStudentClassesState>(
+          listener: (context, state) {
+            if (state is ReadStudentClassesSuccess) {
+              setState(() {
+                _currentReadStudentClassesState = state.response;
+              });
+            }
+
+            if (state is ReadStudentClassesError) {
+              _showSnack(state.message);
+            }
+          },
+        ),
+      ],
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          title: const Text(
+            'Student Classes',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
+          centerTitle: true,
+          elevation: 0,
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          iconTheme: const IconThemeData(color: Colors.white),
+        ),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: _showViewClassesSheet,
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          icon: const Icon(Icons.visibility_rounded),
+          label: const Text(
+            'View Classes',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+        ),
+        body: SingleChildScrollView(
+          child: Column(
+            children: [
+              _buildStudentHeader(student),
+              const SizedBox(height: 12),
+              _buildAddClassSection(),
+              const SizedBox(height: 80),
+            ],
+          ),
         ),
       ),
     );

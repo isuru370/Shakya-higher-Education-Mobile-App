@@ -5,7 +5,6 @@ import '../../../../../core/errors/app_exceptions.dart';
 import '../../../data/models/student_custom_ids/student_custom_id_model.dart';
 import '../../../data/models/student_custom_ids/students_custom_id_request_model.dart';
 import '../../../data/models/students_model.dart';
-import '../../../data/models/students_model/students_request_model.dart';
 import '../../../domain/usecases/create_student_usecase.dart';
 import '../../../domain/usecases/get_students_custom_id_usecase.dart';
 import '../../../domain/usecases/students_usecase.dart';
@@ -36,7 +35,6 @@ class StudentsBloc extends Bloc<StudentsEvent, StudentsState> {
 
   try {
     final response = await createStudentUsecase.execute(
-      token: event.token,
       student: event.student,
     );
 
@@ -61,7 +59,6 @@ class StudentsBloc extends Bloc<StudentsEvent, StudentsState> {
 
     try {
       final response = await getStudentsUseCase.execute(
-        StudentsRequestModel(token: event.token),
       );
 
       emit(StudentsLoaded(response.students));
@@ -84,7 +81,6 @@ class StudentsBloc extends Bloc<StudentsEvent, StudentsState> {
     try {
       final response = await getStudentsCustomIdUsecase.execute(
         StudentsCustomIdRequestModel(
-          token: event.token,
           search: event.search,
           month: event.month,
         ),

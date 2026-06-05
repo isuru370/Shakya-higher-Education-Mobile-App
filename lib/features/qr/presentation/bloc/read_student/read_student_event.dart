@@ -7,14 +7,12 @@ sealed class ReadStudentEvent extends Equatable {
   List<Object> get props => [];
 }
 class ReadStudentRequested extends ReadStudentEvent {
-  final String token;
-  final String customId;
+  final String qrCode;
 
   const ReadStudentRequested({
-    required this.token,
-    required this.customId,
+    required this.qrCode,
   });
 
   @override
-  List<Object> get props => [token, customId];
+  List<Object> get props => [qrCode];
 }

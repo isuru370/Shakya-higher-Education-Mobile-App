@@ -1,11 +1,13 @@
 import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/errors/app_exceptions.dart';
+import '../../../../core/storage/session_storage.dart';
 import '../models/login_request_model.dart';
 import '../models/login_response_model.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthRemoteDataSource {
   Future<LoginResponseModel> login(LoginRequestModel request) async {
@@ -19,36 +21,53 @@ class AuthRemoteDataSource {
       debugPrint('LOGIN RESPONSE CODE: ${response.statusCode}');
       debugPrint('LOGIN RESPONSE BODY: ${response.body}');
 
+      Map<String, dynamic> data = {};
+      try {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic>) {
+          data = decoded;
+        }
+      } catch (_) {}
+
+      final serverMessage = (data['message'] ?? 'Something went wrong')
+          .toString();
+
       if (response.statusCode == 200) {
-        return LoginResponseModel.fromJson(jsonDecode(response.body));
-      } else if (response.statusCode == 401) {
-        throw UnauthorizedException('Invalid email or password');
-      } else {
-        throw ServerException('Server error', response.statusCode);
+        final result = LoginResponseModel.fromJson(data);
+
+        await SessionStorage.saveAuth(token: result.token, user: result.user);
+
+        return result;
       }
-    } on http.ClientException catch (e) {
-      debugPrint('NETWORK ERROR: $e');
+
+      if (response.statusCode == 401) {
+        throw UnauthorizedException(serverMessage);
+      }
+
+      throw ServerException(serverMessage, response.statusCode);
+    } on http.ClientException {
       throw NetworkException('No internet connection');
+    } on FormatException {
+      throw ServerException('Invalid server response', 500);
     } catch (e) {
       debugPrint('LOGIN ERROR: $e');
       rethrow;
     }
   }
 
-  // Optional logout API call
   Future<void> logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token') ?? '';
-    if (token.isEmpty) return;
+    final token = await SessionStorage.getToken();
+    if (token == null || token.isEmpty) return;
 
     try {
-      final response = await http.post(
+      await http.post(
         Uri.parse(ApiConstants.logout),
         headers: ApiConstants.headers(token: token),
       );
-      debugPrint('LOGOUT RESPONSE CODE: ${response.statusCode}');
     } catch (e) {
       debugPrint('LOGOUT ERROR: $e');
+    } finally {
+      await SessionStorage.clear();
     }
   }
 }

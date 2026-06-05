@@ -20,10 +20,7 @@ class ReadStudentBloc extends Bloc<ReadStudentEvent, ReadStudentState> {
     emit(ReadStudentLoading());
 
     try {
-      final result = await readStudentUseCase(
-        token: event.token,
-        customId: event.customId,
-      );
+      final result = await readStudentUseCase(qrCode: event.qrCode);
       emit(ReadStudentLoaded(response: result));
     } catch (e) {
       emit(ReadStudentError(e.toString()));

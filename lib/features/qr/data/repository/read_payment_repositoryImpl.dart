@@ -9,12 +9,10 @@ class ReadPaymentRepositoryImpl implements ReadPaymentRepository {
 
   @override
   Future<ReadPaymentResponseModel> readPayment({
-    required String token,
-    required String customId,
+    required String qrCode,
   }) {
     return remoteDataSource.readPayment(
-      token: token,
-      customId: customId,
+      qrCode: qrCode,
     );
   }
 }

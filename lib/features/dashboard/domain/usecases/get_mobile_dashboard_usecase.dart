@@ -8,7 +8,7 @@ class GetMobileDashboardUseCase {
 
   GetMobileDashboardUseCase(this.repository);
 
-  Future<MobileDashboardResponseModel> call(String token) {
-    return repository.getDashboard(token);
+  Future<MobileDashboardResponseModel> call() {
+    return repository.getDashboard();
   }
 }

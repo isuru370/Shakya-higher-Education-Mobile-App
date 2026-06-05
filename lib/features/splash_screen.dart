@@ -33,8 +33,8 @@ class _SplashScreenState extends State<SplashScreen>
 
     _controller.forward();
 
-    // Navigate after 2 seconds
-    Timer(const Duration(seconds: 2), () {
+    // Navigate after 3 seconds
+    Timer(const Duration(seconds: 3), () {
       Navigator.pushReplacementNamed(context, '/signup');
     });
   }
@@ -51,7 +51,10 @@ class _SplashScreenState extends State<SplashScreen>
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF0F2027), Color(0xFF2C5364)],
+            colors: [
+              Color.fromARGB(255, 112, 122, 126),
+              Color.fromARGB(255, 161, 172, 177),
+            ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -68,7 +71,7 @@ class _SplashScreenState extends State<SplashScreen>
                   SizedBox(
                     height: 140,
                     child: Image.asset(
-                      'assets/logo/white_logo.png',
+                      'assets/logo/logo.png',
                       fit: BoxFit.contain,
                     ),
                   ),
@@ -76,19 +79,21 @@ class _SplashScreenState extends State<SplashScreen>
                   const SizedBox(height: 2),
 
                   const Text(
-                    "SHAKYA EDU",
+                    "SHAKYA HIGHER EDUCATION INSTITUTE",
                     style: TextStyle(
-                      fontSize: 34,
+                      fontSize: 25,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                       letterSpacing: 2,
                     ),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
                   ),
 
                   const SizedBox(height: 8),
 
                   const Text(
-                    "Bringing You Next",
+                    "Towards a bright future",
                     style: TextStyle(
                       fontSize: 16,
                       color: Colors.white70,

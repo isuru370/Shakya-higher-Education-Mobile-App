@@ -1,24 +1,23 @@
-
-import 'read_tute_model.dart';
+import 'read_tute_data_model.dart';
 
 class ReadTuteResponseModel {
-  final String status;
-  final int classTotal;
-  final List<ReadTuteModel> data;
+  final bool success;
+  final String message;
+  final ReadTuteDataModel? data;
 
   ReadTuteResponseModel({
-    required this.status,
-    required this.classTotal,
-    required this.data,
+    required this.success,
+    required this.message,
+    this.data,
   });
 
   factory ReadTuteResponseModel.fromJson(Map<String, dynamic> json) {
     return ReadTuteResponseModel(
-      status: json['status'],
-      classTotal: json['total'] ?? 0,
-      data: (json['data'] as List)
-          .map((e) => ReadTuteModel.fromJson(e))
-          .toList(),
+      success: json['success'] ?? false,
+      message: json['message'] ?? '',
+      data: json['data'] != null
+          ? ReadTuteDataModel.fromJson(json['data'])
+          : null,
     );
   }
 }

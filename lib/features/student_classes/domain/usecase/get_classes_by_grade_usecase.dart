@@ -1,19 +1,17 @@
-import '../../data/models/get_classes_by_grade_response_model.dart';
-import '../repository/class_room_repository.dart';
+import '../../data/models/get_class_with_grade_model/get_classes_by_grade_response_model.dart';
+import '../repository/student_class_repository.dart';
 
 class GetClassesByGradeUseCase {
-  final ClassRoomRepository repository;
+  final StudentClassRepository repository;
 
   GetClassesByGradeUseCase(
      this.repository,
   );
 
   Future<GetClassesByGradeResponseModel> call({
-    required String token,
     required String gradeId,
   }) {
     return repository.getClassesByGrade(
-      token: token,
       gradeId: gradeId,
     );
   }

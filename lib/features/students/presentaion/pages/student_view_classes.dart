@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../bloc/student_classes/student_classes_bloc.dart';
 
 class StudentViewClasses extends StatelessWidget {
-  final String token;
-  const StudentViewClasses({super.key, required this.token});
+  final int studentId;
+  final String studentName;
+  final String customId;
+
+  const StudentViewClasses({
+    super.key,
+    required this.studentId,
+    required this.studentName,
+    required this.customId,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -14,390 +22,536 @@ class StudentViewClasses extends StatelessWidget {
       builder: (context, state) {
         if (state is StudentClassesLoading) {
           return Scaffold(
+            backgroundColor: AppColors.background,
+
             appBar: AppBar(
+              elevation: 0,
+              centerTitle: true,
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
               title: const Text('Student Classes'),
-              backgroundColor: AppTheme.primaryColor,
             ),
+
             body: const Center(child: CircularProgressIndicator()),
           );
         }
 
-        if (state is StudentClassesLoaded ||
-            state is StudentClassStatusChanged) {
-          final blocState = context.read<StudentClassesBloc>().state;
-
-          final classes = state is StudentClassesLoaded
-              ? state.response.data
-              : blocState is StudentClassesLoaded
-              ? blocState.response.data
-              : <dynamic>[];
+        if (state is StudentClassesLoaded) {
+          final classes = state.response.data;
 
           return Scaffold(
+            backgroundColor: AppColors.background,
+
             appBar: AppBar(
-              title: const Text('Student Classes'),
-              backgroundColor: AppTheme.primaryColor,
+              elevation: 0,
+              centerTitle: true,
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+
+              title: const Text(
+                'Student Classes',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
             ),
-            body: classes.isEmpty
-                ? const Center(child: Text("No Classes Found"))
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 16,
-                      horizontal: 12,
+
+            body: Column(
+              children: [
+                // HERO SECTION
+                Container(
+                  width: double.infinity,
+
+                  padding: const EdgeInsets.all(20),
+
+                  decoration: const BoxDecoration(
+                    gradient: AppColors.primaryGradient,
+
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(32),
+                      bottomRight: Radius.circular(32),
                     ),
-                    itemCount: classes.length,
-                    itemBuilder: (context, index) {
-                      final item = classes[index];
-                      final studentClass = item.studentClass;
+                  ),
 
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                  child: Column(
+                    children: [
+                      Text(
+                        studentName,
+
+                        textAlign: TextAlign.center,
+
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
                         ),
-                        elevation: 4,
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '${studentClass.className} • ${studentClass.grade.gradeName}',
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
+                      ),
 
-                              Text(
-                                'Teacher: ${studentClass.teacher.firstName} ${studentClass.teacher.lastName}',
-                                style: const TextStyle(color: Colors.grey),
-                              ),
-                              const SizedBox(height: 4),
+                      const SizedBox(height: 6),
 
-                              Text(
-                                'Subject: ${studentClass.subject.subjectName}',
-                                style: const TextStyle(color: Colors.grey),
-                              ),
-                              const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 8,
+                        ),
 
-                              Text(
-                                'Category: ${item.classCategory.categoryName}',
-                                style: const TextStyle(color: Colors.grey),
-                              ),
-                              const SizedBox(height: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(.14),
 
-                              Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 10,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: item.status
-                                      ? AppTheme.primaryColor.withValues(
-                                          alpha: 0.08,
-                                        )
-                                      : Colors.red.withValues(alpha: 0.08),
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        item.inactiveText.isNotEmpty
-                                            ? item.inactiveText.toUpperCase()
-                                            : (item.status
-                                                  ? 'ACTIVE'
-                                                  : 'INACTIVE'),
-                                        style: TextStyle(
-                                          color: item.status
-                                              ? AppTheme.primaryColor
-                                              : Colors.red,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                    Text(
-                                      item.isFreeCard ? 'Free Card' : 'Paid',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 12),
+                          borderRadius: BorderRadius.circular(100),
 
-                              Row(
-                                children: [
-                                  CircleAvatar(
-                                    radius: 24,
-                                    backgroundImage:
-                                        item.student.imgUrl.isNotEmpty
-                                        ? NetworkImage(item.student.imgUrl)
-                                        : null,
-                                    child: item.student.imgUrl.isEmpty
-                                        ? const Icon(Icons.person)
-                                        : null,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          item.student.fullName,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          item.student.studentCustomId,
-                                          style: const TextStyle(
-                                            color: Colors.grey,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          'Student Status: ${item.student.studentStatus ? "Active" : "Inactive"}',
-                                          style: const TextStyle(
-                                            color: Colors.grey,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 14),
-
-                              Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey.shade100,
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                                child: Column(
-                                  children: [
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        const Text(
-                                          'Joined Date',
-                                          style: TextStyle(color: Colors.grey),
-                                        ),
-                                        Text(
-                                          item.joinedDate,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        const Text(
-                                          'Default Fee',
-                                          style: TextStyle(color: Colors.grey),
-                                        ),
-                                        Text(
-                                          'LKR ${item.defaultFee.toStringAsFixed(0)}',
-                                          style: const TextStyle(
-                                            decoration:
-                                                TextDecoration.lineThrough,
-                                            color: Colors.grey,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        const Text(
-                                          'Final Fee',
-                                          style: TextStyle(color: Colors.grey),
-                                        ),
-                                        Text(
-                                          'LKR ${item.finalFee.toStringAsFixed(0)}',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: item.isFreeCard
-                                                ? Colors.green
-                                                : AppTheme.primaryColor,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        const Text(
-                                          'Fee Type',
-                                          style: TextStyle(color: Colors.grey),
-                                        ),
-                                        Text(
-                                          item.feeType,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    if (item.discountPercentage != null) ...[
-                                      const SizedBox(height: 8),
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          const Text(
-                                            'Discount',
-                                            style: TextStyle(
-                                              color: Colors.grey,
-                                            ),
-                                          ),
-                                          Text(
-                                            '${item.discountPercentage!.toStringAsFixed(2)}%',
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w600,
-                                              color: Colors.green,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 14),
-
-                              Row(
-                                children: [
-                                  if (!item.isFreeCard)
-                                    Expanded(
-                                      child: ElevatedButton.icon(
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor:
-                                              AppTheme.primaryColor,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                          ),
-                                          padding: const EdgeInsets.symmetric(
-                                            vertical: 12,
-                                          ),
-                                        ),
-                                        icon: const Icon(Icons.payment),
-                                        label: const Text('Payment'),
-                                        onPressed: () {
-                                          Navigator.pushNamed(
-                                            context,
-                                            '/payment-history',
-                                            arguments: {
-                                              'student_id': item.studentId,
-                                              'student_student_class_id':
-                                                  item.studentStudentClassId,
-                                              'token': token,
-                                            },
-                                          );
-                                        },
-                                      ),
-                                    ),
-                                  if (!item.isFreeCard)
-                                    const SizedBox(width: 12),
-                                  Expanded(
-                                    child: ElevatedButton.icon(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.green,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                        ),
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 12,
-                                        ),
-                                      ),
-                                      icon: const Icon(Icons.check_circle),
-                                      label: const Text('Attend'),
-                                      onPressed: () {
-                                        Navigator.pushNamed(
-                                          context,
-                                          '/attendance-history',
-                                          arguments: {
-                                            'class_category_has_student_class_id':
-                                                item.classCategoryHasStudentClassId,
-                                            'student_id': item.studentId,
-                                            'token': token,
-                                          },
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: ElevatedButton.icon(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.orangeAccent,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                        ),
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 12,
-                                        ),
-                                      ),
-                                      icon: const Icon(Icons.menu_book),
-                                      label: const Text('Tute'),
-                                      onPressed: () {
-                                        Navigator.pushNamed(
-                                          context,
-                                          '/tute',
-                                          arguments: {
-                                            'class_category_has_student_class_id':
-                                                item.classCategoryHasStudentClassId,
-                                            'student_id': item.studentId,
-                                            'token': token,
-                                          },
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                          border: Border.all(
+                            color: Colors.white.withOpacity(.2),
                           ),
                         ),
-                      );
-                    },
+
+                        child: Text(
+                          customId,
+
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _topInfoCard(
+                              title: 'Classes',
+                              value: classes.length.toString(),
+                              icon: Icons.class_rounded,
+                            ),
+                          ),
+
+                          const SizedBox(width: 12),
+
+                          Expanded(
+                            child: _topInfoCard(
+                              title: 'Active',
+                              value: classes
+                                  .where((e) => e.isActive)
+                                  .length
+                                  .toString(),
+
+                              icon: Icons.verified_rounded,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
+                ),
+
+                // LIST
+                Expanded(
+                  child: classes.isEmpty
+                      ? const Center(child: Text('No Classes Found'))
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(16),
+
+                          itemCount: classes.length,
+
+                          itemBuilder: (context, index) {
+                            final item = classes[index];
+
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 18),
+
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(28),
+                                boxShadow: AppColors.softShadow,
+                              ),
+
+                              child: Padding(
+                                padding: const EdgeInsets.all(18),
+
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+
+                                  children: [
+                                    // TOP
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(14),
+
+                                          decoration: BoxDecoration(
+                                            color: AppColors.primary
+                                                .withOpacity(.08),
+
+                                            borderRadius: BorderRadius.circular(
+                                              18,
+                                            ),
+                                          ),
+
+                                          child: const Icon(
+                                            Icons.menu_book_rounded,
+                                            color: AppColors.primary,
+                                          ),
+                                        ),
+
+                                        const SizedBox(width: 14),
+
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+
+                                            children: [
+                                              Text(
+                                                item.className,
+
+                                                style: const TextStyle(
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.w800,
+                                                ),
+                                              ),
+
+                                              const SizedBox(height: 6),
+
+                                              Text(
+                                                '${item.gradeName} • ${item.teacherName}',
+
+                                                style: TextStyle(
+                                                  color: Colors.grey.shade700,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+
+                                              const SizedBox(height: 4),
+
+                                              Text(
+                                                item.categoryName,
+
+                                                style: TextStyle(
+                                                  color: Colors.grey.shade600,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+
+                                    const SizedBox(height: 18),
+
+                                    // STATUS
+                                    Wrap(
+                                      spacing: 10,
+                                      runSpacing: 10,
+
+                                      children: [
+                                        _statusChip(
+                                          text: item.isActive
+                                              ? 'Active'
+                                              : 'Inactive',
+
+                                          color: item.isActive
+                                              ? AppColors.success
+                                              : AppColors.danger,
+                                        ),
+
+                                        _statusChip(
+                                          text: item.isFreeCard
+                                              ? 'Free Card'
+                                              : 'Paid',
+
+                                          color: item.isFreeCard
+                                              ? AppColors.warning
+                                              : AppColors.primary,
+                                        ),
+                                      ],
+                                    ),
+
+                                    const SizedBox(height: 18),
+
+                                    // PAYMENT DETAILS
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: _paymentCard(
+                                            title: 'Class Fee',
+                                            value:
+                                                'LKR ${item.defultFee.toStringAsFixed(2)}',
+
+                                            color: AppColors.primary,
+                                          ),
+                                        ),
+
+                                        const SizedBox(width: 12),
+
+                                        Expanded(
+                                          child: _paymentCard(
+                                            title: 'Paid Amount',
+                                            value:
+                                                'LKR ${item.finalFee.toStringAsFixed(2)}',
+
+                                            color: AppColors.success,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+
+                                    const SizedBox(height: 16),
+
+                                    Text(
+                                      'Registered Date : ${item.registeredDate != null ? item.registeredDate!.toIso8601String().split("T").first : "-"}',
+
+                                      style: TextStyle(
+                                        color: Colors.grey.shade700,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+
+                                    const SizedBox(height: 18),
+
+                                    // ACTION BUTTONS
+                                    Row(
+                                      children: [
+                                        // PAYMENT
+                                        if (!item.isFreeCard) ...[
+                                          Expanded(
+                                            child: _actionButton(
+                                              color: AppColors.primary,
+                                              icon: Icons.payment_rounded,
+                                              label: 'Payment',
+
+                                              onTap: () {
+                                                Navigator.pushNamed(
+                                                  context,
+                                                  '/payment-history',
+
+                                                  arguments: {
+                                                    'student_id': studentId,
+                                                    'enrollment_id':
+                                                        item.enrollmentId,
+                                                  },
+                                                );
+                                              },
+                                            ),
+                                          ),
+
+                                          const SizedBox(width: 10),
+                                        ],
+
+                                        // ATTENDANCE
+                                        Expanded(
+                                          child: _actionButton(
+                                            color: AppColors.success,
+                                            icon: Icons.check_circle_rounded,
+                                            label: 'Attendance',
+
+                                            onTap: () {
+                                              Navigator.pushNamed(
+                                                context,
+                                                '/attendance-history',
+
+                                                arguments: {
+                                                  'student_id': studentId,
+                                                  'enrollment_id':
+                                                      item.enrollmentId,
+                                                },
+                                              );
+                                            },
+                                          ),
+                                        ),
+
+                                        const SizedBox(width: 10),
+
+                                        // TUTE
+                                        Expanded(
+                                          child: _actionButton(
+                                            color: AppColors.warning,
+                                            icon: Icons.menu_book_rounded,
+                                            label: 'Tute',
+
+                                            onTap: () {
+                                              Navigator.pushNamed(
+                                                context,
+                                                '/tute',
+
+                                                arguments: {
+                                                  'student_id': studentId,
+                                                  'enrollment_id':
+                                                      item.enrollmentId,
+                                                },
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
           );
         }
 
         return Scaffold(
+          backgroundColor: AppColors.background,
+
           appBar: AppBar(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
             title: const Text('Student Classes'),
-            backgroundColor: AppTheme.primaryColor,
           ),
-          body: const Center(child: Text("No Classes Found")),
+
+          body: const Center(child: Text('No Classes Found')),
         );
       },
+    );
+  }
+
+  Widget _topInfoCard({
+    required String title,
+    required String value,
+    required IconData icon,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(.12),
+
+        borderRadius: BorderRadius.circular(22),
+
+        border: Border.all(color: Colors.white.withOpacity(.18)),
+      ),
+
+      child: Column(
+        children: [
+          Icon(icon, color: Colors.white),
+
+          const SizedBox(height: 8),
+
+          Text(
+            value,
+
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+              fontSize: 18,
+            ),
+          ),
+
+          const SizedBox(height: 4),
+
+          Text(
+            title,
+
+            style: const TextStyle(
+              color: Colors.white70,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statusChip({required String text, required Color color}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+
+      decoration: BoxDecoration(
+        color: color.withOpacity(.10),
+        borderRadius: BorderRadius.circular(100),
+      ),
+
+      child: Text(
+        text,
+
+        style: TextStyle(color: color, fontWeight: FontWeight.w700),
+      ),
+    );
+  }
+
+  Widget _paymentCard({
+    required String title,
+    required String value,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+
+      decoration: BoxDecoration(
+        color: color.withOpacity(.08),
+        borderRadius: BorderRadius.circular(22),
+      ),
+
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+
+        children: [
+          Text(
+            title,
+
+            style: TextStyle(
+              color: Colors.grey.shade700,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          Text(
+            value,
+
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w800,
+              fontSize: 16,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _actionButton({
+    required Color color,
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return SizedBox(
+      height: 48,
+
+      child: ElevatedButton.icon(
+        style: ElevatedButton.styleFrom(
+          elevation: 0,
+          backgroundColor: color,
+
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+
+        onPressed: onTap,
+
+        icon: Icon(icon, size: 18, color: Colors.white),
+
+        label: Text(
+          label,
+
+          style: const TextStyle(
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
+        ),
+      ),
     );
   }
 }

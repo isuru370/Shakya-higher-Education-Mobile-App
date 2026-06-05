@@ -8,9 +8,8 @@ class CreateStudentUsecase {
   CreateStudentUsecase(this.repository);
 
   Future<CreateStudentResponseModel> execute({
-    required String token,
     required StudentModel student,
   }) async {
-    return await repository.createStudent(student, token);
+    return await repository.createStudent(student);
   }
 }
