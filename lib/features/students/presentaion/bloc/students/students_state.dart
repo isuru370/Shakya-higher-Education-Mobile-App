@@ -30,13 +30,13 @@ class StudentCustomIdLoaded extends StudentsState {
 }
 
 class StudentsCreated extends StudentsState {
-  final StudentModel student;
+  final CreateStudentResponseModel response;
   final String message;
 
-  const StudentsCreated({required this.student, required this.message});
+  const StudentsCreated({required this.response, required this.message});
 
   @override
-  List<Object> get props => [student, message];
+  List<Object> get props => [response, message];
 }
 
 final class StudentsError extends StudentsState {

@@ -10,7 +10,6 @@ import '../../../qr/presentation/bloc/read_payment/read_payment_bloc.dart';
 import '../../data/models/mark_payment_request_model.dart';
 import '../bloc/mark_payment/mark_payment_bloc.dart';
 import 'utils/payment_discount_calculator.dart';
-import 'utils/payment_receipt_print.dart';
 
 class PaymentPage extends StatefulWidget {
   final String? markMethod;
@@ -27,6 +26,11 @@ class _PaymentPageState extends State<PaymentPage> {
   final Set<int> _selectedenrollmentIds = <int>{};
   DateTime _selectedPaymentDate = DateTime.now();
   bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -46,29 +50,52 @@ class _PaymentPageState extends State<PaymentPage> {
             _isSubmitting = true;
           });
         } else if (state is MarkPaymentLoaded) {
-          final selectedPayments = widget.paymentState.response.data!.classes
-              .where(
-                (item) => _selectedenrollmentIds.contains(item.enrollmentId),
-              )
-              .where((item) => item.isFreeCard == false)
-              .toList();
+          await Future.delayed(const Duration(seconds: 3));
 
           setState(() {
             _isSubmitting = false;
             _selectedenrollmentIds.clear();
           });
 
-          try {
-            //await _printBulkReceipt(payments: selectedPayments);
-          } catch (e) {
-            if (!mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                backgroundColor: Colors.orange,
-                content: Text('Receipt print failed: $e'),
-              ),
-            );
-          }
+          // try {
+          //   final receipt = state.response.receipt;
+          //   final student = state.response.student;
+
+          //   await PaymentReceiptPrint.printBulkReceipt(
+          //     printerService: _printerService,
+          //     instituteName: 'Minipalasa Education Centre',
+          //     studentName: student.name,
+          //     studentId: student.customId,
+          //     paymentMonth: receipt.paymentMonth,
+          //     items: receipt.items.map((item) {
+          //       return PaymentReceiptItem(
+          //         className: item.className,
+          //         subject: item.subject,
+          //         categoryName: item.categoryName,
+          //         grade: item.grade,
+          //         teacherInitials: item.teacher,
+          //         amount: item.amount,
+          //       );
+          //     }).toList(),
+          //     totalFee: receipt.totalFee,
+          //     discountAmount: receipt.discountAmount,
+          //     payableTotal: receipt.payableTotal,
+          //   );
+
+          //   context.read<MarkPaymentBloc>().add(const ResetMarkPayment());
+
+          // } catch (e) {
+          //   if (!mounted) return;
+
+          //   ScaffoldMessenger.of(context).showSnackBar(
+          //     SnackBar(
+          //       backgroundColor: Colors.orange,
+          //       content: Text('Receipt print failed: $e'),
+          //     ),
+          //   );
+
+          //   return;
+          // }
 
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -454,11 +481,11 @@ class _PaymentPageState extends State<PaymentPage> {
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            // final discount = PaymentDiscountCalculator.calculate(
-            //   selectedPayments: selectedPayments,
-            //   minimumClassesForDiscount: 5,
-            //   discountRate: 0.10,
-            // );
+            final discount = PaymentDiscountCalculator.calculate(
+              selectedPayments: selectedPayments,
+              minimumClassesForDiscount: 5,
+              discountRate: 0.10,
+            );
 
             return AlertDialog(
               shape: RoundedRectangleBorder(
@@ -489,25 +516,25 @@ class _PaymentPageState extends State<PaymentPage> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // _dialogSummaryRow(
-                    //   'Selected Classes',
-                    //   discount.selectedCount.toString(),
-                    // ),
-                    // _dialogSummaryRow(
-                    //   'Total Fee',
-                    //   'LKR ${discount.totalFee.toStringAsFixed(2)}',
-                    // ),
-                    // _dialogSummaryRow(
-                    //   'Discount',
-                    //   discount.discountApplied
-                    //       ? 'LKR ${discount.discountAmount.toStringAsFixed(2)}'
-                    //       : 'LKR 0.00 (Need 5 or more classes)',
-                    // ),
-                    // _dialogSummaryRow(
-                    //   'Payable',
-                    //   'LKR ${discount.payableTotal.toStringAsFixed(2)}',
-                    //   bold: true,
-                    // ),
+                    _dialogSummaryRow(
+                      'Selected Classes',
+                      discount.selectedCount.toString(),
+                    ),
+                    _dialogSummaryRow(
+                      'Total Fee',
+                      'LKR ${discount.totalFee.toStringAsFixed(2)}',
+                    ),
+                    _dialogSummaryRow(
+                      'Discount',
+                      discount.discountApplied
+                          ? 'LKR ${discount.discountAmount.toStringAsFixed(2)}'
+                          : 'LKR 0.00 (Need 5 or more classes)',
+                    ),
+                    _dialogSummaryRow(
+                      'Payable',
+                      'LKR ${discount.payableTotal.toStringAsFixed(2)}',
+                      bold: true,
+                    ),
                     const SizedBox(height: 16),
                     InkWell(
                       onTap: () async {
@@ -659,77 +686,29 @@ class _PaymentPageState extends State<PaymentPage> {
     );
   }
 
-  // Widget _dialogSummaryRow(String title, String value, {bool bold = false}) {
-  //   return Padding(
-  //     padding: const EdgeInsets.only(bottom: 8),
-  //     child: Row(
-  //       crossAxisAlignment: CrossAxisAlignment.start,
-  //       children: [
-  //         Expanded(
-  //           child: Text(
-  //             title,
-  //             style: TextStyle(
-  //               fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
-  //             ),
-  //           ),
-  //         ),
-  //         const SizedBox(width: 10),
-  //         Text(
-  //           value,
-  //           style: TextStyle(
-  //             fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
-  //           ),
-  //         ),
-  //       ],
-  //     ),
-  //   );
-  // }
-
-  Future<void> _printBulkReceipt({
-    required List<ReadStudentClassPaymentModel> payments,
-  }) async {
-    try {
-      if (!_printerService.isConnected) {
-        throw Exception('Printer not connected');
-      }
-
-      final discount = PaymentDiscountCalculator.calculate(
-        selectedPayments: payments,
-        minimumClassesForDiscount: 5,
-        discountRate: 0.10,
-      );
-
-      await PaymentReceiptPrint.printBulkReceipt(
-        printerService: _printerService,
-        instituteName: 'Minipalasa Education Centre',
-        studentName: widget.paymentState.response.data!.student.initialName,
-        studentId: widget.paymentState.response.data!.student.customId,
-        paymentMonth: DateFormat('yyyy-MM').format(_selectedPaymentDate),
-
-        items: payments.map((item) {
-          return PaymentReceiptItem(
-            className: item.className,
-            subject: item.subject,
-            categoryName: item.categoryName,
-            grade: 'Grade ${item.grade}',
-            teacherInitials: item.teacherInitials,
-            amount: item.finalFee.toDouble() - discount.perClassDiscount,
-          );
-        }).toList(),
-
-        totalFee: discount.totalFee,
-        discountAmount: discount.discountAmount,
-        payableTotal: discount.payableTotal,
-      );
-    } catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: Colors.orange,
-          content: Text('Receipt print failed: $e'),
-        ),
-      );
-    }
+  Widget _dialogSummaryRow(String title, String value, {bool bold = false}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Text(
+              title,
+              style: TextStyle(
+                fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            value,
+            style: TextStyle(
+              fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -3,6 +3,7 @@ import 'dart:developer';
 
 import 'package:flutter_thermal_printer/flutter_thermal_printer.dart';
 import 'package:flutter_thermal_printer/utils/printer.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class PrinterService {
   static final PrinterService _instance = PrinterService._internal();
@@ -21,15 +22,16 @@ class PrinterService {
     return error.toString().toLowerCase().contains('bluetooth is turned off');
   }
 
+  Future<String?> getSavedPrinterAddress() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    return prefs.getString('saved_printer_address');
+  }
+
   Future<void> connectPrinter(Printer printer) async {
     try {
       if (_connectedPrinter != null) {
-        try {
-          await _printer.disconnect(_connectedPrinter!);
-          log('Disconnected old printer: ${_connectedPrinter!.name}');
-        } catch (e) {
-          log('Old disconnect error: $e');
-        }
+        await _printer.disconnect(_connectedPrinter!);
       }
 
       await _printer.connect(
@@ -38,16 +40,12 @@ class PrinterService {
       );
 
       _connectedPrinter = printer;
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('saved_printer_address', printer.address ?? '');
+
       log('Connected to: ${printer.name}');
-    } catch (e, st) {
-      log('Connect error: $e', stackTrace: st);
-
-      if (_isBluetoothOffError(e)) {
-        throw Exception(
-          'Bluetooth is turned off. Please enable Bluetooth first.',
-        );
-      }
-
+    } catch (e) {
       rethrow;
     }
   }
@@ -56,11 +54,13 @@ class PrinterService {
     try {
       if (_connectedPrinter != null) {
         await _printer.disconnect(_connectedPrinter!);
-        log('Disconnected from: ${_connectedPrinter!.name}');
+
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('saved_printer_address');
+
         _connectedPrinter = null;
       }
-    } catch (e, st) {
-      log('Disconnect error: $e', stackTrace: st);
+    } catch (e) {
       rethrow;
     }
   }
@@ -125,6 +125,33 @@ class PrinterService {
     }
 
     return completer.future;
+  }
+
+  Future<bool> autoReconnect() async {
+    try {
+      final savedAddress = await getSavedPrinterAddress();
+
+      if (savedAddress == null || savedAddress.isEmpty) {
+        return false;
+      }
+
+      final printers = await getAvailablePrinters();
+
+      Printer? printer;
+
+      try {
+        printer = printers.firstWhere((p) => p.address == savedAddress);
+      } catch (_) {
+        return false;
+      }
+
+      await connectPrinter(printer);
+
+      return true;
+    } catch (e) {
+      log('Auto reconnect failed: $e');
+      return false;
+    }
   }
 
   Future<void> selectPrinter(Printer printer) async {

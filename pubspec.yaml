@@ -37,6 +37,8 @@ dependencies:
   flutter_thermal_printer: ^2.0.1
   esc_pos_utils_plus: ^2.0.4
   flutter_blue_plus: ^2.3.5
+  flutter_tts: ^4.2.5
+  timezone: ^0.10.1
 
 dev_dependencies:
   flutter_test:

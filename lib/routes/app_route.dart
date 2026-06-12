@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nexorait_education_app/features/auth/domain/usecases/logout_usecase.dart';
+import 'package:nexorait_education_app/features/class_schedule/presentaion/page/ongoing_class_page.dart';
 import 'package:nexorait_education_app/features/payment/presentaion/pages/payment_page.dart';
 import 'package:nexorait_education_app/features/payment/presentaion/pages/today_payment_page.dart';
 import 'package:nexorait_education_app/features/student_classes/presentaion/pages/create_student_classes.dart';
@@ -10,6 +11,7 @@ import 'package:nexorait_education_app/features/students/presentaion/pages/stude
 import 'package:nexorait_education_app/features/today_attendance/presentation/pages/today_attendance_page.dart';
 import 'package:nexorait_education_app/features/today_classes/presentaion/page/today_classes_page.dart';
 
+import '../features/admission/presentaion/page/admission_payment_page.dart';
 import '../features/attendance/presentaion/pages/attendance_history_page.dart';
 import '../features/attendance/presentaion/pages/attendance_page.dart';
 import '../features/auth/data/datasources/auth_remote_data_source.dart';
@@ -94,6 +96,9 @@ class AppRoutes {
       case '/today-class':
         return MaterialPageRoute(builder: (_) => TodayClassesPage());
 
+        case '/class_ongoing':
+        return MaterialPageRoute(builder: (_) => OngoingClassPage());
+
       case '/attendance-details':
         final args = settings.arguments as Map<String, dynamic>;
         return MaterialPageRoute(
@@ -145,6 +150,8 @@ class AppRoutes {
         );
       case '/today-payment':
         return MaterialPageRoute(builder: (_) => TodayPaymentPage());
+      case '/admission-payment':
+        return MaterialPageRoute(builder: (_) => AdmissionPaymentPage());
       case '/student-tute-screen':
         final response = settings.arguments as ReadTuteResponseModel;
 

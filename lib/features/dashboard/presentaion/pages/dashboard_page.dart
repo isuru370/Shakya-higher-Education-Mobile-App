@@ -4,6 +4,7 @@ import 'package:nexorait_education_app/core/enums/scan_type.dart';
 
 import '../../../../core/storage/session_storage.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/printer_service.dart';
 import '../../../auth/data/models/user_model.dart';
 import '../bloc/mobile_dashboard/mobile_dashboard_bloc.dart';
 
@@ -17,6 +18,7 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> {
   String? _token;
   UserModel? _user;
+  bool _showPrinterBanner = false;
 
   bool _loadingSession = true;
 
@@ -26,11 +28,38 @@ class _DashboardPageState extends State<DashboardPage> {
 
     _loadSession();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        context.read<MobileDashboardBloc>().add(GetMobileDashboardEvent());
-      }
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+
+      context.read<MobileDashboardBloc>().add(GetMobileDashboardEvent());
+
+      await _checkPrinterStatus();
     });
+  }
+
+  Future<void> _checkPrinterStatus() async {
+    final printerService = PrinterService();
+
+    if (printerService.isConnected) {
+      if (mounted) {
+        setState(() {
+          _showPrinterBanner = false;
+        });
+      }
+      return;
+    }
+
+    final connected = await printerService.autoReconnect();
+
+    if (!mounted) return;
+
+    setState(() {
+      _showPrinterBanner = !connected;
+    });
+
+    if (!connected) {
+      _showPrinterSuggestionDialog();
+    }
   }
 
   Future<void> _loadSession() async {
@@ -85,6 +114,135 @@ class _DashboardPageState extends State<DashboardPage> {
     }
 
     return 'Good Evening 🌙';
+  }
+
+  void _showPrinterSuggestionDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(28),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 90,
+                  height: 90,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.print_rounded,
+                    size: 48,
+                    color: AppColors.primary,
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                const Text(
+                  'Printer Not Connected',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.dark,
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                Text(
+                  'No printer is currently connected.\n\n'
+                  'Connect your Bluetooth printer now to print payment receipts and reports instantly.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.grey.shade700,
+                    height: 1.5,
+                    fontSize: 14,
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.orange.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline_rounded,
+                        color: Colors.orange.shade700,
+                      ),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                        child: Text(
+                          'You can continue using the app without a printer.',
+                          style: TextStyle(fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () async {
+                          await Navigator.pushNamed(
+                            context,
+                            '/print_test_screen',
+                          );
+
+                          await _checkPrinterStatus();
+                        },
+                        child: const Text('Connect'),
+                      ),
+                    ),
+
+                    const SizedBox(width: 12),
+
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size.fromHeight(50),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        onPressed: () {
+                          Navigator.pop(context);
+                        },
+                        icon: const Icon(Icons.remove_circle),
+                        label: const Text(
+                          'Later',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -303,6 +461,14 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
 
                   _drawerTile(
+                    icon: Icons.class_outlined,
+                    title: 'Class Schedule',
+                    onTap: () {
+                      Navigator.pushNamed(context, '/class_ongoing');
+                    },
+                  ),
+
+                  _drawerTile(
                     icon: Icons.fact_check_rounded,
                     title: 'Attendance',
                     onTap: () {
@@ -332,6 +498,14 @@ class _DashboardPageState extends State<DashboardPage> {
                     title: 'Today Payments',
                     onTap: () {
                       Navigator.pushNamed(context, '/today-payment');
+                    },
+                  ),
+
+                  _drawerTile(
+                    icon: Icons.monetization_on_outlined,
+                    title: 'Admission',
+                    onTap: () {
+                      Navigator.pushNamed(context, '/admission-payment');
                     },
                   ),
 
@@ -455,6 +629,45 @@ class _DashboardPageState extends State<DashboardPage> {
                     padding: const EdgeInsets.all(20),
 
                     children: [
+                      if (_showPrinterBanner) ...[
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade50,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.orange.shade200),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.print_disabled_rounded,
+                                color: Colors.orange,
+                              ),
+                              const SizedBox(width: 12),
+
+                              const Expanded(
+                                child: Text(
+                                  'Printer not connected. Connect now to print receipts instantly.',
+                                ),
+                              ),
+
+                              TextButton(
+                                onPressed: () async {
+                                  await Navigator.pushNamed(
+                                    context,
+                                    '/print_test_screen',
+                                  );
+
+                                  await _checkPrinterStatus();
+                                },
+                                child: const Text('Connect'),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+                      ],
                       // =========================
                       // HERO CARD
                       // =========================

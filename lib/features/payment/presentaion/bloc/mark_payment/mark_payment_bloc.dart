@@ -27,6 +27,7 @@ class MarkPaymentBloc extends Bloc<MarkPaymentEvent, MarkPaymentState> {
     on<MarkPaymentRequested>(_onMarkPaymentRequested);
     on<TodayPaymentsRequested>(_onTodayPaymentsRequested);
     on<PaymentHistoryRequested>(_onPaymentHistoryRequested);
+    on<ResetMarkPayment>(_onResetMarkPayment);
   }
 
   Future<void> _onMarkPaymentRequested(
@@ -90,5 +91,12 @@ class MarkPaymentBloc extends Bloc<MarkPaymentEvent, MarkPaymentState> {
     }
 
     return message.replaceAll('Exception: ', '');
+  }
+
+  void _onResetMarkPayment(
+    ResetMarkPayment event,
+    Emitter<MarkPaymentState> emit,
+  ) {
+    emit(MarkPaymentInitial());
   }
 }

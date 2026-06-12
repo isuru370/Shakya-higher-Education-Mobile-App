@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/printer_service.dart';
 import '../../../student_grade/presentation/bloc/student_grade/student_grade_bloc.dart';
 import '../../data/models/students_model.dart';
 import '../bloc/students/students_bloc.dart';
+import '../widgets/admission_dialog.dart';
+import '../widgets/admission_receipt_print.dart';
 
 class CreateStudentPage extends StatefulWidget {
   const CreateStudentPage({super.key});
@@ -14,6 +17,7 @@ class CreateStudentPage extends StatefulWidget {
 }
 
 class _CreateStudentPageState extends State<CreateStudentPage> {
+  final PrinterService _printerService = PrinterService();
   final _formKey = GlobalKey<FormState>();
 
   final _temporaryQrCodeController = TextEditingController();
@@ -24,6 +28,7 @@ class _CreateStudentPageState extends State<CreateStudentPage> {
   int? _selectedGradeId;
   String _selectedGender = 'male';
   bool _isLoading = false;
+  int? _selectedAdmissionId;
 
   @override
   void initState() {
@@ -56,6 +61,23 @@ class _CreateStudentPageState extends State<CreateStudentPage> {
     }
   }
 
+  Future<void> _showAdmissionDialog() async {
+    final result = await showDialog<AdmissionDialogResult>(
+      context: context,
+      builder: (_) => const AdmissionDialog(),
+    );
+
+    if (result == null) {
+      return;
+    }
+
+    setState(() {
+      _selectedAdmissionId = result.admissionId;
+    });
+
+    _submitStudent();
+  }
+
   void _submitStudent() {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -81,7 +103,7 @@ class _CreateStudentPageState extends State<CreateStudentPage> {
       gender: _selectedGender,
       guardianMobile: _guardianMobileController.text.trim(),
       gradeId: _selectedGradeId!,
-      admission: false,
+      admission: _selectedAdmissionId,
     );
 
     context.read<StudentsBloc>().add(CreateStudentEvent(student: student));
@@ -100,14 +122,123 @@ class _CreateStudentPageState extends State<CreateStudentPage> {
             _isLoading = false;
           });
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              backgroundColor: AppColors.success,
-              content: Text(
-                'Student created successfully (ID: ${state.student.customId})',
+          final payment = state.response.admissionPayment;
+
+          if (payment != null) {
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (_) {
+                return AlertDialog(
+                  title: const Text('Admission Receipt'),
+
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Receipt No : ${payment.receiptNumber}'),
+
+                      const SizedBox(height: 8),
+
+                      Text('Student ID : ${state.response.student.customId}'),
+
+                      const SizedBox(height: 8),
+
+                      Text('Admission : ${payment.admissionName}'),
+
+                      const SizedBox(height: 8),
+
+                      Text('Amount : Rs.${payment.amount}'),
+
+                      const SizedBox(height: 8),
+
+                      Text('Method : ${payment.paymentMethod}'),
+
+                      const SizedBox(height: 8),
+
+                      Text('Status : ${payment.status}'),
+                    ],
+                  ),
+
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+
+                        _clearForm();
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            backgroundColor: AppColors.success,
+                            content: Text(
+                              'Student created successfully (ID: ${state.response.student.customId})',
+                            ),
+                          ),
+                        );
+                      },
+                      child: const Text('Close'),
+                    ),
+
+                    ElevatedButton.icon(
+                      onPressed: () async {
+                        try {
+                          await AdmissionReceiptPrint.printReceipt(
+                            printerService: _printerService,
+
+                            instituteName: 'Minipalasa Education Center',
+
+                            receiptNumber: payment.receiptNumber,
+
+                            studentName: state.response.student.initialName,
+
+                            studentId: state.response.student.customId
+                                .toString(),
+
+                            admissionName: payment.admissionName,
+
+                            amount: double.parse(payment.amount),
+
+                            paymentMethod: payment.paymentMethod,
+
+                            paidAt: payment.paidAt,
+                          );
+
+                          if (context.mounted) {
+                            Navigator.pop(context);
+
+                            _clearForm();
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Receipt printed successfully'),
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Print failed: $e')),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.print),
+                      label: const Text('Print'),
+                    ),
+                  ],
+                );
+              },
+            );
+          } else {
+            _clearForm();
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                backgroundColor: AppColors.success,
+                content: Text(
+                  'Student created successfully (ID: ${state.response.student.customId})',
+                ),
               ),
-            ),
-          );
+            );
+          }
         } else if (state is StudentsError) {
           setState(() {
             _isLoading = false;
@@ -369,7 +500,7 @@ class _CreateStudentPageState extends State<CreateStudentPage> {
                   child: SizedBox(
                     height: 60,
                     child: ElevatedButton.icon(
-                      onPressed: _isLoading ? null : _submitStudent,
+                      onPressed: _isLoading ? null : _showAdmissionDialog,
                       icon: _isLoading
                           ? const SizedBox(
                               width: 20,
@@ -490,4 +621,24 @@ class _CreateStudentPageState extends State<CreateStudentPage> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
     );
   }
+
+  void _clearForm() {
+    _temporaryQrCodeController.clear();
+    _lnameController.clear();
+    _guardianMobileController.clear();
+    _quickImageIdController.clear();
+
+    setState(() {
+      _selectedGradeId = null;
+      _selectedAdmissionId = null;
+      _selectedGender = 'male';
+    });
+  }
+}
+
+class AdmissionDialogResult {
+  final bool submitted;
+  final int? admissionId;
+
+  AdmissionDialogResult({required this.submitted, this.admissionId});
 }

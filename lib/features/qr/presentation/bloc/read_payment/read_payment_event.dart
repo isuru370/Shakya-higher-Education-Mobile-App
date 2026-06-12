@@ -15,3 +15,5 @@ class ReadPaymentRequested extends ReadPaymentEvent {
   @override
   List<Object?> get props => [qrCode];
 }
+
+class ResetReadPayment extends ReadPaymentEvent {}

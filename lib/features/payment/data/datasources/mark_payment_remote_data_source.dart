@@ -14,7 +14,7 @@ import '../models/today_payments/today_payments_response_model.dart';
 class MarkPaymentRemoteDataSource {
   const MarkPaymentRemoteDataSource();
 
-  Future<MarkPaymentResponseModel> markPayment({
+  Future<MarkPaymentResponseDataModel> markPayment({
     required MarkPaymentRequestModel requestModel,
   }) async {
     try {
@@ -28,7 +28,9 @@ class MarkPaymentRemoteDataSource {
       final Map<String, dynamic> jsonBody = jsonDecode(response.body);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        return MarkPaymentResponseModel.fromJson(jsonBody);
+        return MarkPaymentResponseDataModel.fromJson(
+          jsonBody['data'] as Map<String, dynamic>?,
+        );
       }
 
       final message =

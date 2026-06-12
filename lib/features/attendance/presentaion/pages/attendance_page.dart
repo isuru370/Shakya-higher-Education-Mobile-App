@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nexorait_education_app/features/qr/presentation/bloc/read_payment/read_payment_bloc.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/tts_service.dart';
 import '../../../qr/data/model/read_attendance/read_attendance_data_model.dart';
 import '../../../student_classes/data/models/store_student_class_enrollment/create_student_class_enrollment_model.dart';
 import '../../../student_classes/data/models/store_student_class_enrollment/create_student_request_class_model.dart';
@@ -32,6 +33,46 @@ class _AttendancePageState extends State<AttendancePage> {
   bool isMarkingAttendance = false;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _announceStudentStatus();
+    });
+  }
+
+  Future<void> _announceStudentStatus() async {
+    final student = widget.attendanceData.student;
+    final enrollment = widget.attendanceData.enrollment;
+    final lastPayment = widget.attendanceData.lastPayment;
+
+    final studentName = getShortName(student.initialName);
+
+    String message;
+
+    if (enrollment.isEnrolled == false) {
+      message = "$studentName මෙම පන්තියට ඇතුළත් වී නැත";
+    } else {
+      final isCurrentMonthPaid = _isPaidForCurrentMonth(
+        lastPayment?.paymentMonth,
+      );
+
+      if (!isCurrentMonthPaid) {
+        message = "$studentName මෙම මාසයේ ගෙවීම සිදු කර නැත";
+      } else {
+        return;
+      }
+    }
+
+    await TtsService.instance.speak(message);
+  }
+
+  @override
+  void dispose() {
+    TtsService.instance.stop();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final student = widget.attendanceData.student;
     final enrollment = widget.attendanceData.enrollment;
@@ -51,6 +92,9 @@ class _AttendancePageState extends State<AttendancePage> {
         BlocListener<AttendanceBloc, AttendanceState>(
           listener: (context, state) {
             if (state is AttendanceSuccess) {
+              setState(() {
+                isMarkingAttendance = false;
+              });
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(state.message),
@@ -62,32 +106,27 @@ class _AttendancePageState extends State<AttendancePage> {
                 context.read<ReadPaymentBloc>().add(
                   ReadPaymentRequested(student.customId),
                 );
+
+                // Attendance page close karanawa
+                Navigator.pop(context, true);
+              } else {
+                Navigator.pop(context, true);
               }
             } else if (state is AttendanceError) {
+              setState(() {
+                isMarkingAttendance = false;
+              });
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(state.message),
                   backgroundColor: Colors.red,
                 ),
               );
-            }
-            Navigator.pop(context);
-          },
-        ),
-        BlocListener<ReadPaymentBloc, ReadPaymentState>(
-          listener: (context, state) {
-            if (state is ReadPaymentLoaded) {
-              Navigator.pushNamed(
-                context,
-                '/payment-details',
-                arguments: {
-                  'paymentState': state,
-                  'mark_method': widget.markMethod,
-                },
-              );
+              Navigator.pop(context, true);
             }
           },
         ),
+
         BlocListener<ClassRoomBloc, ClassRoomState>(
           listener: (context, state) {
             if (state is ClassRoomCreateSuccess) {
@@ -386,22 +425,29 @@ class _AttendancePageState extends State<AttendancePage> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
-                    onPressed: () {
-                      context.read<AttendanceBloc>().add(
-                        MarkAttendanceRequested(
-                          request: AttendanceRequestModel(
-                            studentId: student.id,
-                            classScheduleId: widget.classScheduleId,
-                            studentClassId: enrollment.studentClassId,
-                            classCategoryFeeId: enrollment.classCategoryFeeId,
-                            markMethod: widget.markMethod ?? 'qr_mobile',
-                            markTute: markTute,
-                            note:
-                                'Student: ${student.initialName} | Grade: ${enrollment.grade} | Class: ${enrollment.className} | Category: ${enrollment.categoryName}',
-                          ),
-                        ),
-                      );
-                    },
+                    onPressed: isMarkingAttendance
+                        ? null
+                        : () {
+                            setState(() {
+                              isMarkingAttendance = true;
+                            });
+
+                            context.read<AttendanceBloc>().add(
+                              MarkAttendanceRequested(
+                                request: AttendanceRequestModel(
+                                  studentId: student.id,
+                                  classScheduleId: widget.classScheduleId,
+                                  studentClassId: enrollment.studentClassId,
+                                  classCategoryFeeId:
+                                      enrollment.classCategoryFeeId,
+                                  markMethod: widget.markMethod ?? 'qr_mobile',
+                                  markTute: markTute,
+                                  note:
+                                      'Student: ${student.initialName} | Grade: ${enrollment.grade} | Class: ${enrollment.className} | Category: ${enrollment.categoryName}',
+                                ),
+                              ),
+                            );
+                          },
                     icon: const Icon(Icons.check_circle_rounded),
                     label: const Text('Mark Attendance'),
                     style: ElevatedButton.styleFrom(
@@ -862,6 +908,25 @@ class _AttendancePageState extends State<AttendancePage> {
         ),
       ),
     );
+  }
+
+  String getShortName(String? fullName) {
+    if (fullName == null || fullName.trim().isEmpty) {
+      return '';
+    }
+
+    // comma replace
+    String cleaned = fullName.replaceAll(',', ' ');
+
+    // dot වලින් split කරන්න
+    List<String> dotParts = cleaned.split('.');
+
+    String lastPart = dotParts.last.trim();
+
+    // spaces තියෙනවා නම් last word එක ගන්න
+    List<String> words = lastPart.split(RegExp(r'\s+'));
+
+    return words.last.trim();
   }
 
   String _currentYearMonth() {

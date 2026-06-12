@@ -39,3 +39,7 @@ class PaymentHistoryRequested extends MarkPaymentEvent {
   @override
   List<Object> get props => [requestModel];
 }
+
+class ResetMarkPayment extends MarkPaymentEvent {
+  const ResetMarkPayment();
+}

@@ -10,10 +10,10 @@ part 'read_payment_state.dart';
 class ReadPaymentBloc extends Bloc<ReadPaymentEvent, ReadPaymentState> {
   final ReadPaymentUseCase readPaymentUseCase;
 
-  ReadPaymentBloc({
-    required this.readPaymentUseCase,
-  }) : super(const ReadPaymentInitial()) {
+  ReadPaymentBloc({required this.readPaymentUseCase})
+    : super(const ReadPaymentInitial()) {
     on<ReadPaymentRequested>(_onReadPaymentRequested);
+    on<ResetReadPayment>(_onResetReadPayment);
   }
 
   Future<void> _onReadPaymentRequested(
@@ -27,13 +27,18 @@ class ReadPaymentBloc extends Bloc<ReadPaymentEvent, ReadPaymentState> {
     emit(ReadPaymentLoading(previousResponse: previousResponse));
 
     try {
-      final result = await readPaymentUseCase(
-        qrCode: event.qrCode,
-      );
+      final result = await readPaymentUseCase(qrCode: event.qrCode);
 
       emit(ReadPaymentLoaded(result));
     } catch (e) {
       emit(ReadPaymentError(message: e.toString()));
     }
+  }
+
+  void _onResetReadPayment(
+    ResetReadPayment event,
+    Emitter<ReadPaymentState> emit,
+  ) {
+    emit(const ReadPaymentInitial());
   }
 }

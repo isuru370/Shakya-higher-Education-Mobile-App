@@ -1,7 +1,8 @@
+import 'package:nexorait_education_app/features/payment/data/models/mark_payment_response_model.dart';
+
 import '../../domain/repositories/mark_payment_repository.dart';
 import '../datasources/mark_payment_remote_data_source.dart';
 import '../models/mark_payment_request_model.dart';
-import '../models/mark_payment_response_model.dart';
 import '../models/payment_history/payment_history_request_model.dart';
 import '../models/payment_history/payment_history_response_model.dart';
 import '../models/today_payments/today_payments_request_model.dart';
@@ -13,7 +14,7 @@ class MarkPaymentRepositoryImpl implements MarkPaymentRepository {
   const MarkPaymentRepositoryImpl(this.remoteDataSource);
 
   @override
-  Future<MarkPaymentResponseModel> markPayment({
+  Future<MarkPaymentResponseDataModel> markPayment({
     required MarkPaymentRequestModel requestModel,
   }) {
     return remoteDataSource.markPayment(requestModel: requestModel);

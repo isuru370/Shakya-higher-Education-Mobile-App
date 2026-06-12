@@ -3,7 +3,7 @@ class ApiConstants {
   static const String apiUrl = '$baseUrl/api';
 
   //http://10.208.53.230:8000
-  //https://minipalasaeducation.nexorait.lk
+  //https://shakyaeducation.nexorait.lk
 
   static const String login = '$apiUrl/login';
   static const String logout = '$apiUrl/logout';

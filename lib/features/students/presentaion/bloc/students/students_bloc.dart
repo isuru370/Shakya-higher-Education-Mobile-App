@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../core/errors/app_exceptions.dart';
+import '../../../data/models/create_student/create_student_response_model.dart';
 import '../../../data/models/student_custom_ids/student_custom_id_model.dart';
 import '../../../data/models/student_custom_ids/students_custom_id_request_model.dart';
 import '../../../data/models/students_model.dart';
@@ -28,28 +29,28 @@ class StudentsBloc extends Bloc<StudentsEvent, StudentsState> {
   }
 
   Future<void> _onCreateStudent(
-  CreateStudentEvent event,
-  Emitter<StudentsState> emit,
-) async {
-  emit(StudentsLoading());
+    CreateStudentEvent event,
+    Emitter<StudentsState> emit,
+  ) async {
+    emit(StudentsLoading());
 
-  try {
-    final response = await createStudentUsecase.execute(
-      student: event.student,
-    );
+    try {
+      final response = await createStudentUsecase.execute(
+        student: event.student,
+      );
 
-    emit(
-      StudentsCreated(
-        student: response.student,
-        message: 'Student created successfully',
-      ),
-    );
-  } on AppException catch (e) {
-    emit(StudentsError(e.message));
-  } catch (_) {
-    emit(const StudentsError('Something went wrong'));
+      emit(
+        StudentsCreated(
+          response: response,
+          message: 'Student created successfully',
+        ),
+      );
+    } on AppException catch (e) {
+      emit(StudentsError(e.message));
+    } catch (_) {
+      emit(const StudentsError('Something went wrong'));
+    }
   }
-}
 
   Future<void> _onFetchStudents(
     FetchStudents event,
@@ -58,8 +59,7 @@ class StudentsBloc extends Bloc<StudentsEvent, StudentsState> {
     emit(StudentsLoading());
 
     try {
-      final response = await getStudentsUseCase.execute(
-      );
+      final response = await getStudentsUseCase.execute();
 
       emit(StudentsLoaded(response.students));
     } on AppException catch (e) {
@@ -80,10 +80,7 @@ class StudentsBloc extends Bloc<StudentsEvent, StudentsState> {
 
     try {
       final response = await getStudentsCustomIdUsecase.execute(
-        StudentsCustomIdRequestModel(
-          search: event.search,
-          month: event.month,
-        ),
+        StudentsCustomIdRequestModel(search: event.search, month: event.month),
       );
 
       emit(StudentCustomIdLoaded(response.studentCustomIds));

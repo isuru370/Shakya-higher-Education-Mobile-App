@@ -35,7 +35,7 @@ class StudentModel {
   final int gradeId;
   final String? classType;
 
-  final bool? admission;
+  final int? admission;
 
   final String? studentSchool;
   final String? imgUrl;
@@ -116,7 +116,7 @@ class StudentModel {
       guardianMobile: _string(json['guardian_mobile']) ?? '',
       gradeId: _int(json['grade_id']) ?? 0,
       classType: _string(json['class_type']),
-      admission: _bool(json['admission']),
+      admission: _int(json['admission']),
       studentSchool: _string(json['student_school']),
       imgUrl: rawPath == null || rawPath.isEmpty
           ? null
@@ -180,6 +180,7 @@ class StudentModel {
       'guardian_mobile': guardianMobile,
       'grade_id': gradeId,
       'gender': gender,
+      'admission_id': admission,
     };
   }
 }
